@@ -1,0 +1,25 @@
+[package]
+name = "moloch-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core types and primitives for Moloch audit chain"
+
+[dependencies]
+thiserror.workspace = true
+derive_more.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bincode.workspace = true
+rkyv.workspace = true
+arcanum-hash.workspace = true
+arcanum-signatures.workspace = true
+bumpalo.workspace = true
+rayon.workspace = true
+rand.workspace = true
+hex.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

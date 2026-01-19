@@ -1,0 +1,57 @@
+[package]
+name = "moloch-api"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "REST/WebSocket API layer for Moloch audit chain"
+
+[dependencies]
+moloch-core = { path = "../moloch-core" }
+moloch-chain = { path = "../moloch-chain" }
+moloch-storage = { path = "../moloch-storage" }
+moloch-index = { path = "../moloch-index" }
+moloch-consensus = { path = "../moloch-consensus" }
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json = "1.0"
+
+# Async runtime
+tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# Web framework
+axum = { version = "0.7", features = ["ws", "macros"] }
+tower = { version = "0.5", features = ["timeout", "limit"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"] }
+
+# WebSocket
+tokio-tungstenite = "0.24"
+
+# Authentication
+jsonwebtoken = "9"
+argon2 = "0.5"
+base64 = "0.22"
+
+# Time
+chrono.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Utilities
+uuid = { version = "1.11", features = ["v4", "serde"] }
+parking_lot = "0.12"
+dashmap = "6"
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio-test = "0.4"
+axum-test = "16"

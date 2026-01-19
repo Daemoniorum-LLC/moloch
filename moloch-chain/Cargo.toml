@@ -1,0 +1,43 @@
+[package]
+name = "moloch-chain"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Chain operations for Moloch audit chain"
+
+[dependencies]
+# Internal
+moloch-core = { path = "../moloch-core" }
+moloch-mmr = { path = "../moloch-mmr" }
+moloch-storage = { path = "../moloch-storage" }
+
+# Core
+thiserror.workspace = true
+derive_more.workspace = true
+
+# Serialization
+serde.workspace = true
+bincode.workspace = true
+
+# Time
+chrono.workspace = true
+
+# Async
+tokio.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Hex encoding
+hex.workspace = true
+
+# Concurrency (lock-free mempool)
+crossbeam.workspace = true
+dashmap.workspace = true
+parking_lot.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+proptest.workspace = true

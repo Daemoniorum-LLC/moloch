@@ -1,0 +1,20 @@
+[package]
+name = "moloch-storage"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Storage layer for Moloch audit chain"
+
+[dependencies]
+moloch-core = { path = "../moloch-core" }
+moloch-mmr = { path = "../moloch-mmr" }
+thiserror.workspace = true
+serde.workspace = true
+bincode.workspace = true
+rocksdb.workspace = true
+tracing.workspace = true
+tempfile.workspace = true
+memmap2.workspace = true
+parking_lot.workspace = true
+rkyv.workspace = true

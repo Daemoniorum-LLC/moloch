@@ -1,0 +1,16 @@
+[package]
+name = "moloch-mmr"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Merkle Mountain Range implementation for Moloch"
+
+[dependencies]
+moloch-core = { path = "../moloch-core" }
+thiserror.workspace = true
+serde.workspace = true
+rayon.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

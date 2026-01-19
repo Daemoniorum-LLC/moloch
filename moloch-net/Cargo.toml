@@ -1,0 +1,44 @@
+[package]
+name = "moloch-net"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Networking layer for Moloch audit chain"
+
+[dependencies]
+moloch-core = { path = "../moloch-core" }
+moloch-chain = { path = "../moloch-chain" }
+moloch-storage = { path = "../moloch-storage" }
+
+# Core
+thiserror.workspace = true
+serde.workspace = true
+bincode.workspace = true
+hex.workspace = true
+
+# Async runtime
+tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# TLS
+rustls = "0.23"
+tokio-rustls = "0.26"
+webpki-roots = "0.26"
+rcgen = "0.13"
+
+# Time
+chrono.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Randomness
+rand.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+proptest.workspace = true
+tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }

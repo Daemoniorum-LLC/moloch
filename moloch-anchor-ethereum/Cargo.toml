@@ -1,0 +1,43 @@
+[package]
+name = "moloch-anchor-ethereum"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Ethereum anchoring provider for Moloch"
+
+[features]
+default = []
+mainnet = []
+sepolia = []
+holesky = []
+
+[dependencies]
+moloch-core.path = "../moloch-core"
+moloch-anchor = { path = "../moloch-anchor", features = ["mock"] }
+
+# Ethereum (alloy - modern ethers successor)
+alloy = { version = "0.8", features = [
+    "full",
+    "provider-http",
+    "signer-local",
+    "network",
+    "contract",
+    "rpc-types",
+] }
+
+# Core
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+parking_lot.workspace = true
+hex.workspace = true
+tracing.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

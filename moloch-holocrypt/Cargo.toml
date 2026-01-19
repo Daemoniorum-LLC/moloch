@@ -1,0 +1,44 @@
+[package]
+name = "moloch-holocrypt"
+description = "HoloCrypt integration for Moloch audit chain - encrypted events, ZK proofs, threshold access"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["full"]
+full = ["encryption", "zkp", "threshold", "pqc"]
+encryption = []
+zkp = []
+threshold = []
+pqc = []
+
+[dependencies]
+# Moloch core
+moloch-core = { path = "../moloch-core" }
+
+# Arcanum cryptographic primitives
+arcanum-holocrypt = { path = "../../arcanum/crates/arcanum-holocrypt", features = ["full"] }
+arcanum-core = { path = "../../arcanum/crates/arcanum-core" }
+arcanum-hash = { path = "../../arcanum/crates/arcanum-hash", default-features = false, features = ["std", "backend-native", "blake3"] }
+arcanum-signatures = { path = "../../arcanum/crates/arcanum-signatures", default-features = false, features = ["ed25519"] }
+arcanum-symmetric = { path = "../../arcanum/crates/arcanum-symmetric" }
+arcanum-threshold = { path = "../../arcanum/crates/arcanum-threshold" }
+arcanum-pqc = { path = "../../arcanum/crates/arcanum-pqc" }
+arcanum-zkp = { path = "../../arcanum/crates/arcanum-zkp" }
+
+# Core utilities
+thiserror.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+hex.workspace = true
+
+# Async
+tokio = { workspace = true, features = ["sync"] }
+
+# Random
+getrandom = "0.2"
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true

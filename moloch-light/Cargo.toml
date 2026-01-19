@@ -1,0 +1,20 @@
+[package]
+name = "moloch-light"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Light client protocol for Moloch audit chain"
+
+[dependencies]
+moloch-core.path = "../moloch-core"
+moloch-mmr.path = "../moloch-mmr"
+
+thiserror.workspace = true
+serde.workspace = true
+bincode.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,28 @@
+[package]
+name = "moloch-anchor"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Provider-agnostic blockchain anchoring for Moloch audit chain"
+
+[features]
+default = []
+mock = ["rand"]
+
+[dependencies]
+moloch-core.path = "../moloch-core"
+
+thiserror.workspace = true
+serde.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+parking_lot.workspace = true
+hex.workspace = true
+rand = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile.workspace = true
+rand.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

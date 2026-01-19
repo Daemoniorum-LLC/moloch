@@ -1,0 +1,23 @@
+[package]
+name = "moloch-federation"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Multi-chain federation for cross-chain audit trails"
+
+[dependencies]
+moloch-core.path = "../moloch-core"
+moloch-mmr.path = "../moloch-mmr"
+moloch-light.path = "../moloch-light"
+
+thiserror.workspace = true
+serde.workspace = true
+bincode.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+dashmap.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

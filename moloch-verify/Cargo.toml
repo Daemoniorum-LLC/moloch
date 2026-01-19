@@ -1,0 +1,18 @@
+[package]
+name = "moloch-verify"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Formal verification and runtime invariant checking for Moloch"
+
+[dependencies]
+moloch-core.path = "../moloch-core"
+moloch-mmr.path = "../moloch-mmr"
+
+thiserror.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true

@@ -1,0 +1,30 @@
+[package]
+name = "moloch-index"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Indexing and query layer for Moloch audit chain"
+
+[dependencies]
+# Internal
+moloch-core = { path = "../moloch-core" }
+moloch-mmr = { path = "../moloch-mmr" }
+moloch-storage = { path = "../moloch-storage" }
+
+# Error handling
+thiserror.workspace = true
+
+# Serialization
+serde.workspace = true
+bincode.workspace = true
+
+# Time
+chrono.workspace = true
+
+# Logging
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
