@@ -1,0 +1,160 @@
+sigil Doc {
+    title: !"Moloch Quickstart",
+    summary: !"Agent-optimized quickstart for Moloch cryptographic audit chain",
+    evidentiality: !KNOWN,
+    lastVerified: !"2026-01-20",
+    tags: !["quickstart", "getting-started", "api"],
+    content: !markdown```
+
+# Moloch Quickstart
+
+## TL;DR - Run This
+
+```bash
+# Build
+cargo build --release
+
+# Test
+cargo test --lib
+
+# Benchmark (optional)
+RUSTFLAGS="-C target-cpu=native" cargo bench -p moloch-bench
+```
+
+## Crate Map
+
+| Crate | Purpose |
+|-------|---------|
+| moloch-core | Events, blocks, signatures |
+| moloch-mmr | Merkle Mountain Range |
+| moloch-chain | Chain state machine |
+| moloch-storage | RocksDB + mmap |
+| moloch-index | Query indexes |
+| moloch-holocrypt | ZK proofs, PQC, threshold |
+| moloch-consensus | Aura PoA |
+| moloch-net | P2P networking |
+| moloch-api | REST/WebSocket |
+| moloch-anchor-* | Bitcoin/Ethereum anchoring |
+
+## Key Files
+
+```
+moloch-core/src/event.rs     # AuditEvent, EventType
+moloch-core/src/block.rs     # Block, BlockBuilder
+moloch-core/src/crypto.rs    # SecretKey, PublicKey
+moloch-holocrypt/src/proofs.rs    # ZK proofs
+moloch-holocrypt/src/threshold.rs # k-of-n encryption
+moloch-holocrypt/src/pqc.rs       # ML-KEM-768
+```
+
+## Create Event
+
+```rust
+use moloch_core::crypto::SecretKey;
+use moloch_core::event::{ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind};
+
+let key = SecretKey::generate();
+let actor = ActorId::new(key.public_key(), ActorKind::User);
+let resource = ResourceId::new(ResourceKind::Repository, "my-repo");
+
+let event = AuditEvent::builder()
+    .now()
+    .event_type(EventType::Push { force: false, commits: 5 })
+    .actor(actor)
+    .resource(resource)
+    .outcome(Outcome::Success)
+    .metadata(serde_json::json!({"branch": "main"}))
+    .sign(&key)
+    .unwrap();
+```
+
+## Selective Encryption
+
+```rust
+use moloch_holocrypt::{EncryptedEventBuilder, EncryptionPolicy, generate_keypair};
+
+let (sealing_key, opening_key) = generate_keypair("my-key");
+
+let encrypted = EncryptedEventBuilder::new()
+    .event(event)
+    .policy(EncryptionPolicy::default())
+    .build(&sealing_key)
+    .unwrap();
+
+let decrypted = encrypted.decrypt(&opening_key).unwrap();
+```
+
+## ZK Proofs
+
+```rust
+use moloch_holocrypt::{EventProof, ProofType};
+
+// Prove existence without revealing content
+let proof = EventProof::builder()
+    .event(encrypted.clone())
+    .prove_existence()
+    .build()
+    .unwrap();
+
+proof.verify(&encrypted).unwrap();
+```
+
+## Threshold Encryption
+
+```rust
+use moloch_holocrypt::{ThresholdConfig, ThresholdEvent, KeyShareSet};
+
+let config = ThresholdConfig::two_of_three();
+let (threshold_event, shares) = ThresholdEvent::seal(&event, config).unwrap();
+
+let mut share_set = KeyShareSet::new();
+share_set.add(shares[0].clone());
+share_set.add(shares[1].clone());
+
+let decrypted = threshold_event.unseal(&share_set).unwrap();
+```
+
+## Post-Quantum
+
+```rust
+use moloch_holocrypt::{EventPqcKeyPair, QuantumSafeEvent};
+
+let pqc_key = EventPqcKeyPair::generate("my-pqc-key");
+let sealed = QuantumSafeEvent::seal(&event, &pqc_key).unwrap();
+let unsealed = sealed.unseal(&pqc_key).unwrap();
+```
+
+## MMR Operations
+
+```rust
+use moloch_mmr::{Mmr, MemStore};
+use moloch_core::hash;
+
+let mut mmr = Mmr::new(MemStore::new());
+let leaves: Vec<_> = (0..100).map(|i| hash(&i.to_le_bytes())).collect();
+let positions = mmr.append_batch(&leaves).unwrap();
+
+let proof = mmr.proof(positions[0]).unwrap();
+mmr.verify(&proof).unwrap();
+```
+
+## Benchmark Commands
+
+```bash
+cargo bench -p moloch-bench --bench crypto_benchmarks  # ZK, PQC
+cargo bench -p moloch-bench --bench mmr_benchmarks     # MMR
+cargo bench -p moloch-bench --bench mempool_benchmarks # Lock-free
+cargo bench -p moloch-bench --bench core_benchmarks    # Events, sigs
+```
+
+## Performance
+
+| Operation | Throughput |
+|-----------|------------|
+| ZK proof gen | 500K/sec |
+| PQC keygen | 19K/sec |
+| MMR append | 1.6M/sec |
+| Batch sig verify | 800K/sec |
+
+    ```,
+}

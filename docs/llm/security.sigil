@@ -1,0 +1,144 @@
+sigil Doc {
+    title: !"Moloch Security",
+    summary: !"Security model, threats, and best practices",
+    evidentiality: !KNOWN,
+    lastVerified: !"2026-01-20",
+    tags: !["security", "cryptography", "threat-model"],
+    content: !markdown```
+
+# Moloch Security
+
+## Assets
+
+1. Audit Events (immutable records)
+2. Private Keys (signing, encryption)
+3. MMR State (history commitment)
+
+## Threat Actors
+
+| Actor | Capability | Goal |
+|-------|------------|------|
+| External | Network | Forge, DoS |
+| Malicious Validator | Consensus | Censor |
+| Insider | Key access | Decrypt |
+| Quantum | Future QC | Break crypto |
+
+## Crypto Security
+
+### Signatures
+
+- Algorithm: Ed25519 (128-bit)
+- Key gen: CSPRNG via getrandom
+- Batch verify: constant-time
+
+### Post-Quantum
+
+For >10yr confidentiality:
+```rust
+let pqc_key = EventPqcKeyPair::generate("archive-key");
+let sealed = QuantumSafeEvent::seal(&event, &pqc_key)?;
+```
+
+ML-KEM-768 = NIST Level 3
+
+### ZK Proofs
+
+| Proof | Reveals | Hides |
+|-------|---------|-------|
+| Existence | In chain | Content |
+| Type | Event type | Actor, resource |
+| Membership | In set | Which one |
+
+## Consensus Security
+
+BFT tolerates `f < n/3` Byzantine validators
+
+| Attack | Mitigation |
+|--------|------------|
+| Double-sign | Slashing |
+| Censorship | Rotation |
+| Long-range | Anchors |
+| Eclipse | Peer diversity |
+
+## Network
+
+- TLS 1.3
+- Ed25519 peer identity
+- Rate limiting per peer
+
+## Storage
+
+Enable encryption:
+```toml
+[storage]
+encryption = true
+key_source = "vault"
+```
+
+## Key Management
+
+### Validator Keys
+
+1. Generate air-gapped
+2. Store in HSM
+3. Rotate periodically
+4. Secure backup
+
+### Threshold
+
+```rust
+let config = ThresholdConfig::new(3, 5)?; // 3-of-5
+```
+
+### Rotation
+
+```rust
+let new_key = SecretKey::generate();
+chain.rotate_key(&old_key, &new_key)?;
+old_key.zeroize();
+```
+
+## API Security
+
+```toml
+[api]
+require_auth = true
+jwt_secret = "${JWT_SECRET}"
+
+[api.rate_limit]
+requests_per_minute = 600
+```
+
+## Deployment Checklist
+
+- [ ] HSM for validator keys
+- [ ] Storage encryption
+- [ ] TLS configured
+- [ ] Rate limits set
+- [ ] Monitoring enabled
+- [ ] Incident response plan
+
+## Incident Response
+
+### Event Forgery
+
+1. Identify compromised key
+2. Rotate keys
+3. Publish revocation
+4. Analyze timeline
+5. Notify parties
+
+### Validator Compromise
+
+1. Remove from set
+2. Collect evidence
+3. Rotate remaining keys
+4. Audit affected blocks
+
+## Report Vulnerabilities
+
+Email: security@daemoniorum.com
+Do NOT disclose publicly before fix.
+
+    ```,
+}

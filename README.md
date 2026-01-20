@@ -2,6 +2,8 @@
 
 Cryptographic audit chain with post-quantum encryption, zero-knowledge proofs, and cross-chain anchoring.
 
+**~35,000 lines of Rust** across 16 crates and 91 source files.
+
 See [BENCHMARK_REPORT.md](BENCHMARK_REPORT.md) for performance data.
 
 ## Features
@@ -192,6 +194,23 @@ The `moloch-api` crate provides:
 - JWT and API key authentication
 - Rate limiting and audit logging
 
+## Documentation
+
+```
+docs/
+├── developer/           # Human-readable documentation
+│   ├── quickstart.md    # Getting started guide
+│   ├── architecture.md  # System design
+│   ├── api.md           # REST/WebSocket API reference
+│   └── security.md      # Security considerations
+├── llm/                 # Agent-optimized docs (Sigil format)
+│   ├── quickstart.sigil
+│   ├── architecture.sigil
+│   ├── api.sigil
+│   └── security.sigil
+└── archive/             # Historical documents
+```
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)
@@ -202,7 +221,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## Contributing
 
-See contributing guidelines before submitting PRs.
+See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting PRs.
 
 ## Related Projects
 

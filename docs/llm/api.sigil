@@ -1,0 +1,157 @@
+sigil Doc {
+    title: !"Moloch API Reference",
+    summary: !"REST and WebSocket API endpoints",
+    evidentiality: !KNOWN,
+    lastVerified: !"2026-01-20",
+    tags: !["api", "rest", "websocket"],
+    content: !markdown```
+
+# Moloch API
+
+Base: `http://localhost:8080/v1`
+
+## Auth
+
+```bash
+# API Key
+curl -H "X-API-Key: <key>" /v1/events
+
+# JWT
+curl -H "Authorization: Bearer <token>" /v1/events
+```
+
+## REST Endpoints
+
+### Events
+
+**Submit Event**
+```http
+POST /v1/events
+Content-Type: application/json
+
+{
+  "event_type": "push",
+  "actor": {"id": "user:alice", "kind": "user"},
+  "resource": {"id": "repo:org/repo", "kind": "repository"},
+  "outcome": "success",
+  "metadata": {"branch": "main"}
+}
+```
+
+**Get Event**
+```http
+GET /v1/events/{event_id}
+```
+
+**Query Events**
+```http
+GET /v1/events?actor=user:alice&limit=100
+```
+
+Query params: `actor`, `resource`, `event_type`, `from`, `to`, `limit`, `offset`
+
+### Blocks
+
+```http
+GET /v1/blocks/{height}
+GET /v1/blocks/latest
+```
+
+### Proofs
+
+```http
+GET /v1/proofs/inclusion?event_id={id}
+GET /v1/proofs/consistency?from={h1}&to={h2}
+```
+
+### Status
+
+```http
+GET /v1/status
+```
+
+Response:
+```json
+{
+  "chain_id": "moloch-mainnet",
+  "head_height": 1234,
+  "peer_count": 5,
+  "syncing": false
+}
+```
+
+## WebSocket
+
+Connect: `ws://localhost:8080/v1/ws`
+
+**Subscribe to Events**
+```json
+{
+  "type": "subscribe",
+  "channel": "events",
+  "filter": {"actor": "user:*"}
+}
+```
+
+**Subscribe to Blocks**
+```json
+{
+  "type": "subscribe",
+  "channel": "blocks"
+}
+```
+
+**Unsubscribe**
+```json
+{
+  "type": "unsubscribe",
+  "channel": "events"
+}
+```
+
+## Errors
+
+```json
+{
+  "error": {
+    "code": "INVALID_EVENT",
+    "message": "Signature verification failed"
+  }
+}
+```
+
+| Code | Status | Description |
+|------|--------|-------------|
+| INVALID_REQUEST | 400 | Bad request |
+| INVALID_EVENT | 400 | Validation failed |
+| NOT_FOUND | 404 | Not found |
+| RATE_LIMITED | 429 | Too many requests |
+
+## Rate Limits
+
+| Tier | Req/min | WS Connections |
+|------|---------|----------------|
+| Free | 60 | 1 |
+| Standard | 600 | 5 |
+| Enterprise | 6000 | 50 |
+
+Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+
+## SDK
+
+**Rust**
+```rust
+let client = Client::new("http://localhost:8080").api_key("key");
+let event_id = client.submit_event(&event).await?;
+let events = client.query().actor("user:alice").execute().await?;
+```
+
+**Python**
+```python
+client = Client("http://localhost:8080", api_key="key")
+event_id = client.submit_event(event_type="push", ...)
+events = client.query_events(actor="user:alice")
+```
+
+    ```,
+}
