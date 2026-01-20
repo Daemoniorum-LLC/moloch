@@ -17,6 +17,7 @@ members = [
     "moloch-anchor-bitcoin",
     "moloch-anchor-ethereum",
     "moloch-bench",
+    "examples",
 ]
 
 [workspace.package]
@@ -24,7 +25,9 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Daemoniorum LLC"]
 license = "MIT"
-repository = "https://github.com/Daemoniorum-LLC/workspace"
+repository = "https://github.com/Daemoniorum-LLC/moloch"
+keywords = ["audit", "blockchain", "cryptography", "merkle", "zk-proofs"]
+categories = ["cryptography", "data-structures"]
 
 [workspace.dependencies]
 # Core

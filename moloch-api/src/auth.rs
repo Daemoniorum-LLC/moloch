@@ -6,7 +6,6 @@
 //! - Rate limiting per key
 //! - Permission levels
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -16,6 +15,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use moloch_core::hash;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
@@ -281,6 +281,21 @@ impl AuthMiddleware {
         }
     }
 
+    /// Create auth middleware with strict production checks.
+    ///
+    /// Panics if:
+    /// - JWT secret is the default "change-me-in-production"
+    /// - JWT secret is shorter than 32 characters
+    pub fn new_strict(config: AuthConfig) -> Self {
+        if config.jwt_secret == "change-me-in-production" {
+            panic!("JWT secret must be changed from default value in production");
+        }
+        if config.jwt_secret.len() < 32 {
+            panic!("JWT secret must be at least 32 characters");
+        }
+        Self::new(config)
+    }
+
     /// Register an API key.
     pub fn register_key(&self, secret: impl Into<String>, key: ApiKey) {
         let secret = secret.into();
@@ -300,14 +315,13 @@ impl AuthMiddleware {
         self.api_keys.get(&hashed).map(|v| v.clone())
     }
 
-    /// Hash an API key for storage.
+    /// Hash an API key for storage using BLAKE3.
+    ///
+    /// BLAKE3 is cryptographically secure, fast, and produces consistent output.
+    /// Returns a 64-character hex string (32 bytes).
     fn hash_key(&self, secret: &str) -> String {
-        // In production, use a proper hash like argon2
-        // For now, use a simple hash for testing
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        secret.hash(&mut hasher);
-        format!("{:016x}", hasher.finish())
+        let h = hash(secret.as_bytes());
+        hex::encode(h.as_bytes())
     }
 
     /// Validate an API key and check rate limits.
@@ -627,5 +641,72 @@ mod tests {
         assert!(user.can_read());
         assert!(user.can_write());
         assert!(!user.is_admin());
+    }
+
+    // ===== TDD Tests for Cryptographic API Key Hashing =====
+
+    #[test]
+    fn test_hash_key_is_consistent() {
+        let config = make_config();
+        let auth = AuthMiddleware::new(config);
+
+        // Hash should be consistent for same input
+        let hash1 = auth.hash_key("my-secret-key");
+        let hash2 = auth.hash_key("my-secret-key");
+        assert_eq!(hash1, hash2, "same input should produce same hash");
+    }
+
+    #[test]
+    fn test_hash_key_is_cryptographic_length() {
+        let config = make_config();
+        let auth = AuthMiddleware::new(config);
+
+        let hash = auth.hash_key("my-secret-key");
+
+        // BLAKE3 hex is 64 chars, Argon2 PHC is ~97+ chars
+        // Current SipHash is only 16 chars - this test should FAIL initially
+        assert!(
+            hash.len() >= 64,
+            "hash should be at least 32 bytes (64 hex chars), got {} chars",
+            hash.len()
+        );
+    }
+
+    #[test]
+    fn test_hash_key_different_inputs_different_outputs() {
+        let config = make_config();
+        let auth = AuthMiddleware::new(config);
+
+        let hash1 = auth.hash_key("secret-key-1");
+        let hash2 = auth.hash_key("secret-key-2");
+        assert_ne!(hash1, hash2, "different inputs should produce different hashes");
+    }
+
+    // ===== TDD Tests for JWT Secret Production Guard =====
+
+    #[test]
+    #[should_panic(expected = "JWT secret must be changed")]
+    fn test_default_jwt_secret_panics_in_strict_mode() {
+        let config = AuthConfig::default();
+        let _auth = AuthMiddleware::new_strict(config);
+    }
+
+    #[test]
+    #[should_panic(expected = "JWT secret must be at least 32 characters")]
+    fn test_short_jwt_secret_panics_in_strict_mode() {
+        let mut config = AuthConfig::default();
+        config.jwt_secret = "too-short".to_string();
+        let _auth = AuthMiddleware::new_strict(config);
+    }
+
+    #[test]
+    fn test_valid_jwt_secret_works_in_strict_mode() {
+        let mut config = AuthConfig::default();
+        config.jwt_secret = "my-secure-production-secret-at-least-32-characters-long".to_string();
+        let auth = AuthMiddleware::new_strict(config);
+
+        // Should not panic, and should work
+        let key = ApiKey::new("test", "Test", Permission::Read);
+        assert!(auth.generate_token(&key).is_ok());
     }
 }
