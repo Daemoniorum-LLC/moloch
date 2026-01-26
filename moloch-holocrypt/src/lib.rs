@@ -44,12 +44,25 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 
+pub mod agile;
+pub mod composite;
 pub mod encrypted;
+pub mod frost;
 pub mod proofs;
 pub mod threshold;
 pub mod pqc;
 pub mod errors;
 
+pub use agile::{
+    AgileConfig, AgileEncryptedEvent, SignatureAlgorithm, HashAlgorithm, MigrationInfo,
+};
+pub use composite::{
+    CompositeSigningKey, CompositeVerifyingKey, CompositeSignature,
+};
+pub use frost::{
+    FrostConfig, FrostCoordinator, FrostParticipant, FrostSignature, FrostSignedEvent,
+    FrostSigningCeremony, CeremonyState,
+};
 pub use encrypted::{
     EncryptedEvent, EncryptedEventBuilder, EncryptionPolicy, FieldVisibility,
     generate_keypair, EventSealingKey, EventOpeningKey,
@@ -61,7 +74,10 @@ pub use errors::{HoloCryptError, Result};
 
 /// Prelude for convenient imports.
 pub mod prelude {
+    pub use crate::agile::{AgileConfig, AgileEncryptedEvent, SignatureAlgorithm, HashAlgorithm};
+    pub use crate::composite::{CompositeSigningKey, CompositeVerifyingKey, CompositeSignature};
     pub use crate::encrypted::{EncryptedEvent, EncryptedEventBuilder, EncryptionPolicy, FieldVisibility};
+    pub use crate::frost::{FrostConfig, FrostCoordinator, FrostParticipant, FrostSignature, FrostSignedEvent};
     pub use crate::proofs::{EventProof, ProofType, PropertyAssertion};
     pub use crate::threshold::{ThresholdEvent, KeyShareSet, ThresholdConfig};
     pub use crate::pqc::{PqcEvent, HybridEncryption, QuantumSafeEvent};
