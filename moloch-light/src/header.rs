@@ -76,7 +76,7 @@ impl TrustedHeader {
     /// Verify a signature against this header's hash.
     fn verify_signature(&self, pk: &PublicKey, sig: &moloch_core::Sig) -> bool {
         let message = self.header.hash();
-        pk.verify(message.as_bytes(), sig).is_ok()
+        pk.verify(message.as_hash().as_bytes(), sig).is_ok()
     }
 
     /// Encoded size in bytes (for bandwidth estimation).
