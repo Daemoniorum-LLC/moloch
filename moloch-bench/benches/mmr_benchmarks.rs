@@ -26,7 +26,7 @@ fn bench_mmr_append(c: &mut Criterion) {
     for &size in &batch_sizes {
         let leaves: Vec<_> = (0..size).map(make_leaf).collect();
 
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         // Sequential appending
         group.bench_with_input(
@@ -67,7 +67,7 @@ fn bench_mmr_proof_generation(c: &mut Criterion) {
         let leaves: Vec<_> = (0..size).map(make_leaf).collect();
         let positions = mmr.append_batch(&leaves).unwrap();
 
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         // Sequential proof generation
         group.bench_with_input(
@@ -107,7 +107,7 @@ fn bench_mmr_verification(c: &mut Criterion) {
         let positions = mmr.append_batch(&leaves).unwrap();
         let proofs = mmr.proof_batch(&positions).unwrap();
 
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         // Sequential verification
         group.bench_with_input(
@@ -144,7 +144,7 @@ fn bench_mmr_proof_range(c: &mut Criterion) {
     mmr.append_batch(&leaves).unwrap();
 
     for &size in &range_sizes {
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         // Range proof generation
         group.bench_with_input(

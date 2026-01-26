@@ -452,7 +452,7 @@ mod tests {
 
         // Verify we can deserialize back (using rkyv's full deserialization)
         // For zero-copy, use access_events_unchecked on trusted data
-        assert!(bytes.len() > 0);
+        assert!(!bytes.is_empty());
     }
 
     #[test]

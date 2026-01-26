@@ -702,7 +702,7 @@ mod tests {
     #[test]
     fn test_message_codec_roundtrip() {
         let codec = MessageCodec::new();
-        let key = SecretKey::generate();
+        let _key = SecretKey::generate();
 
         let original = Message::Status(StatusMessage {
             height: Some(50),

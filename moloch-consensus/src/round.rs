@@ -923,8 +923,10 @@ mod tests {
     async fn test_consensus_engine_create_proposal() {
         let (key, sealer) = make_validator();
         let validators = ValidatorSet::new(vec![sealer]);
-        let mut config = ConsensusConfig::default();
-        config.min_block_interval = Duration::ZERO;
+        let config = ConsensusConfig {
+            min_block_interval: Duration::ZERO,
+            ..Default::default()
+        };
 
         let engine = ConsensusEngine::new(config, key.clone(), validators, 0);
 
@@ -939,7 +941,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_consensus_engine_not_leader() {
-        let (key1, sealer1) = make_validator();
+        let (_key1, sealer1) = make_validator();
         let (key2, sealer2) = make_validator();
 
         let validators = ValidatorSet::new(vec![sealer1, sealer2]);
@@ -953,8 +955,10 @@ mod tests {
     async fn test_consensus_engine_handle_proposal() {
         let (key, sealer) = make_validator();
         let validators = ValidatorSet::new(vec![sealer.clone()]);
-        let mut config = ConsensusConfig::default();
-        config.min_block_interval = Duration::ZERO;
+        let config = ConsensusConfig {
+            min_block_interval: Duration::ZERO,
+            ..Default::default()
+        };
 
         let engine = ConsensusEngine::new(config, key.clone(), validators, 0);
 

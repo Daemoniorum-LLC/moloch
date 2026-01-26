@@ -50,19 +50,15 @@ impl Default for AuthConfig {
 /// Permission level for API access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum Permission {
     /// Read-only access.
+    #[default]
     Read,
     /// Can submit events.
     Write,
     /// Full administrative access.
     Admin,
-}
-
-impl Default for Permission {
-    fn default() -> Self {
-        Permission::Read
-    }
 }
 
 /// An API key with metadata.
@@ -391,13 +387,11 @@ impl AuthMiddleware {
     pub fn authenticate(&self, authorization: Option<&str>) -> Result<Claims, AuthError> {
         let auth = authorization.ok_or(AuthError::MissingAuth)?;
 
-        if auth.starts_with("Bearer ") {
+        if let Some(token) = auth.strip_prefix("Bearer ") {
             // JWT token
-            let token = &auth[7..];
             self.validate_token(token)
-        } else if auth.starts_with("ApiKey ") {
+        } else if let Some(key_secret) = auth.strip_prefix("ApiKey ") {
             // API key
-            let key_secret = &auth[7..];
             let key = self.validate_api_key(key_secret)?;
             Ok(Claims::new(
                 &key.id,
@@ -710,15 +704,19 @@ mod tests {
     #[test]
     #[should_panic(expected = "JWT secret must be at least 32 characters")]
     fn test_short_jwt_secret_panics_in_strict_mode() {
-        let mut config = AuthConfig::default();
-        config.jwt_secret = "too-short".to_string();
+        let config = AuthConfig {
+            jwt_secret: "too-short".to_string(),
+            ..Default::default()
+        };
         let _auth = AuthMiddleware::new_strict(config);
     }
 
     #[test]
     fn test_valid_jwt_secret_works_in_strict_mode() {
-        let mut config = AuthConfig::default();
-        config.jwt_secret = "my-secure-production-secret-at-least-32-characters-long".to_string();
+        let config = AuthConfig {
+            jwt_secret: "my-secure-production-secret-at-least-32-characters-long".to_string(),
+            ..Default::default()
+        };
         let auth = AuthMiddleware::new_strict(config);
 
         // Should not panic, and should work

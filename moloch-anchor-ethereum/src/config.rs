@@ -3,9 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 /// Ethereum chain/network.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Chain {
     /// Ethereum mainnet (chain ID 1).
+    #[default]
     Mainnet,
     /// Sepolia testnet (chain ID 11155111).
     Sepolia,
@@ -83,12 +84,6 @@ impl Chain {
             137 => Chain::Polygon,
             _ => Chain::Custom(id),
         }
-    }
-}
-
-impl Default for Chain {
-    fn default() -> Self {
-        Chain::Mainnet
     }
 }
 

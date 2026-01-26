@@ -291,7 +291,7 @@ impl VoteSet {
         // Add to block hash index
         self.by_block
             .entry(vote.block_hash)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(voter_id);
 
         Ok(true)
@@ -687,7 +687,7 @@ mod tests {
 
     #[test]
     fn test_vote_set_unknown_validator() {
-        let (key1, sealer1, _) = make_validator();
+        let (_key1, sealer1, _) = make_validator();
         let (key2, _, pubkey2) = make_validator();
 
         let validators = ValidatorSet::new(vec![sealer1]);

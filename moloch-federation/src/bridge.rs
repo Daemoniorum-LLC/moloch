@@ -47,6 +47,7 @@ pub enum BridgeState {
 
 /// Messages that can be sent over the bridge.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum BridgeMessage {
     /// Request event proof.
     RequestProof {

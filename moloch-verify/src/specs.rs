@@ -122,6 +122,7 @@ impl SpecViolation {
 }
 
 /// Well-known specifications for Moloch.
+#[allow(clippy::module_inception)]
 pub mod specs {
     use super::*;
 

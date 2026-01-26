@@ -25,7 +25,9 @@ fn main() -> anyhow::Result<()> {
 
     let event = AuditEvent::builder()
         .now()
-        .event_type(EventType::AccessGranted { permission: "download".into() })
+        .event_type(EventType::AccessGranted {
+            permission: "download".into(),
+        })
         .actor(actor)
         .resource(resource)
         .outcome(Outcome::Success)
@@ -56,10 +58,7 @@ fn main() -> anyhow::Result<()> {
 
     // Decrypt with key
     let decrypted = encrypted.decrypt(&opening_key)?;
-    println!(
-        "\nDecrypted event - actor restored: {:?}",
-        &decrypted.actor
-    );
+    println!("\nDecrypted event - actor restored: {:?}", &decrypted.actor);
 
     // 2. Zero-Knowledge Proofs
     println!("\n--- Zero-Knowledge Proofs ---\n");

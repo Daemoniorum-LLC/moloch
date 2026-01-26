@@ -16,9 +16,7 @@ use moloch_core::Hash;
 use crate::config::BitcoinConfig;
 use crate::error::{BitcoinError, Result};
 use crate::rpc::BitcoinRpc;
-use crate::tx::{
-    generate_merkle_proof, parse_op_return_script, AnchorTxBuilder, Utxo,
-};
+use crate::tx::{generate_merkle_proof, parse_op_return_script, AnchorTxBuilder, Utxo};
 use crate::MAX_OP_RETURN_SIZE;
 
 /// Bitcoin anchor provider.

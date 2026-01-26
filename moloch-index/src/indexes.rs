@@ -491,12 +491,8 @@ pub struct IndexStats {
 mod tests {
     use super::*;
     use chrono::Duration;
-    use moloch_core::{
-        crypto::SecretKey,
-        event::ActorKind,
-    };
+    use moloch_core::{crypto::SecretKey, event::ActorKind};
     use moloch_storage::RocksStorage;
-    
 
     fn test_event(key: &SecretKey, resource_id: &str) -> AuditEvent {
         let actor = ActorId::new(key.public_key(), ActorKind::User);

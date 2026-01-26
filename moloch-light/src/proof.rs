@@ -108,9 +108,9 @@ impl MmrCompactProof {
         // Walk up the tree using siblings
         let mut current = leaf;
         let mut pos = self.position;
-        let mut height = 0u32;
 
-        for sibling in &self.siblings {
+        for (height, sibling) in self.siblings.iter().enumerate() {
+            let height = height as u32;
             let left_pos = pos - (1 << height);
             let is_left = pos == left_pos + (1 << height);
 
@@ -126,7 +126,6 @@ impl MmrCompactProof {
             } else {
                 pos + (1 << (height + 1))
             };
-            height += 1;
         }
 
         // Bag peaks right to left

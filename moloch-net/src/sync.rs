@@ -27,10 +27,12 @@ use moloch_core::crypto::Hash;
 /// Synchronization mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum SyncMode {
     /// Full sync from genesis.
     Full,
     /// Fast sync: download blocks and verify MMR proofs.
+    #[default]
     Fast,
     /// Snap sync: download recent state snapshot.
     Snap,
@@ -38,12 +40,6 @@ pub enum SyncMode {
     CatchUp,
     /// Warp sync: skip to recent checkpoint.
     Warp,
-}
-
-impl Default for SyncMode {
-    fn default() -> Self {
-        SyncMode::Fast
-    }
 }
 
 impl std::fmt::Display for SyncMode {
@@ -849,8 +845,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_manager_needs_sync() {
-        let mut config = SyncConfig::default();
-        config.sync_threshold = 10;
+        let config = SyncConfig {
+            sync_threshold: 10,
+            ..Default::default()
+        };
         let manager = SyncManager::new(config);
 
         // No peers = no sync needed

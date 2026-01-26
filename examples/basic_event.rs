@@ -45,7 +45,10 @@ fn main() -> anyhow::Result<()> {
     println!("  Outcome: {:?}", event.outcome);
 
     // Verify the signature
-    let is_valid = event.attester().verify(&event.canonical_bytes(), event.signature()).is_ok();
+    let is_valid = event
+        .attester()
+        .verify(&event.canonical_bytes(), event.signature())
+        .is_ok();
     println!("\nSignature valid: {}", is_valid);
 
     // Serialize to JSON

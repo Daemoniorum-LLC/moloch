@@ -14,12 +14,12 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::RwLock;
 use tracing::error;
 
+use crate::protocol::{
+    generate_message_id, DisconnectReason, HelloAckMessage, HelloMessage, Message, MessageCodec,
+    PeerId, ProtocolVersion,
+};
 #[cfg(test)]
 use crate::protocol::{PingMessage, StatusMessage};
-use crate::protocol::{
-    generate_message_id, DisconnectReason, HelloAckMessage, HelloMessage, Message,
-    MessageCodec, PeerId, ProtocolVersion,
-};
 use moloch_core::crypto::{PublicKey, SecretKey};
 
 /// Network configuration.

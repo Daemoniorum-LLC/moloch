@@ -251,6 +251,7 @@ pub struct MockHeaderProvider {
 
 #[cfg(test)]
 impl MockHeaderProvider {
+    /// Create a new mock provider with the given headers.
     pub fn new(headers: Vec<TrustedHeader>) -> Self {
         Self { headers }
     }

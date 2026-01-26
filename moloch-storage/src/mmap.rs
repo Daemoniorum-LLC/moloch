@@ -162,6 +162,7 @@ impl MmapStorage {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&events_path)
             .map_err(|e| Error::storage(format!("failed to open events file: {}", e)))?;
 
@@ -182,6 +183,7 @@ impl MmapStorage {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&mmr_path)
             .map_err(|e| Error::storage(format!("failed to open mmr file: {}", e)))?;
 
@@ -608,7 +610,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let key = SecretKey::generate();
         let event = test_event(&key);
-        let id = event.id();
+        let _id = event.id();
 
         // Write
         {

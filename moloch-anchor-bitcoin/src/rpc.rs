@@ -1,6 +1,5 @@
 //! Bitcoin RPC client wrapper.
 
-
 use bitcoin::consensus::encode;
 use bitcoin::{Block, BlockHash, Transaction, Txid};
 use bitcoincore_rpc::json::{

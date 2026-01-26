@@ -673,7 +673,7 @@ mod tests {
 
     #[test]
     fn test_finality_proof_verify_invalid_validator() {
-        let (key1, sealer1, _) = make_validator();
+        let (_key1, sealer1, _) = make_validator();
         let (key2, _, pubkey2) = make_validator();
 
         let validators = ValidatorSet::new(vec![sealer1]);
@@ -903,8 +903,10 @@ mod tests {
         let (key, sealer, pubkey) = make_validator();
         let validators = ValidatorSet::new(vec![sealer]);
 
-        let mut config = FinalityConfig::default();
-        config.max_proofs_in_memory = 3;
+        let config = FinalityConfig {
+            max_proofs_in_memory: 3,
+            ..Default::default()
+        };
 
         let gadget = FinalityGadget::new(config, 0);
 

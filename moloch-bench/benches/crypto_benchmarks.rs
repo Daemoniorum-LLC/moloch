@@ -9,7 +9,7 @@
 // Link mimalloc global allocator from the bench library
 use moloch_bench as _;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use moloch_core::crypto::SecretKey;
 use moloch_core::event::{
@@ -17,7 +17,7 @@ use moloch_core::event::{
 };
 use moloch_holocrypt::{
     generate_keypair, EncryptedEventBuilder, EncryptionPolicy, EventPqcKeyPair, EventProof,
-    KeyShareSet, PqcEvent, ProofType, QuantumSafeEvent, ThresholdConfig, ThresholdEvent,
+    KeyShareSet, PqcEvent, QuantumSafeEvent, ThresholdConfig, ThresholdEvent,
 };
 
 fn create_test_event(key: &SecretKey) -> AuditEvent {
@@ -281,7 +281,7 @@ fn bench_pqc_unseal(c: &mut Criterion) {
 fn bench_ed25519_vs_mlkem(c: &mut Criterion) {
     let mut group = c.benchmark_group("comparison/keygen");
 
-    group.bench_function("ed25519", |b| b.iter(|| SecretKey::generate()));
+    group.bench_function("ed25519", |b| b.iter(SecretKey::generate));
 
     group.bench_function("mlkem768", |b| b.iter(|| EventPqcKeyPair::generate("key")));
 

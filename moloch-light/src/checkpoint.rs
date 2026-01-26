@@ -184,7 +184,6 @@ pub mod testnet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_checkpoint_registry() {

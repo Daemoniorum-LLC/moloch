@@ -1,6 +1,5 @@
 //! Ethereum AnchorProvider implementation.
 
-
 use alloy::consensus::Transaction as TxTrait;
 use alloy::network::{EthereumWallet, TransactionBuilder};
 use alloy::primitives::{Address, Bytes, TxHash, U256};
@@ -161,7 +160,7 @@ impl EthereumProvider {
         }
 
         // Check selector
-        if &data[0..4] != MOLOCH_SELECTOR {
+        if data[0..4] != MOLOCH_SELECTOR {
             return Err(EthereumError::InvalidCalldata("invalid selector".into()));
         }
 
@@ -318,7 +317,7 @@ impl AnchorProvider for EthereumProvider {
         Ok(AnchorTx::pending(
             Self::format_tx_hash(&tx_hash),
             &self.id,
-            &self.config.chain.moloch_chain_id(),
+            self.config.chain.moloch_chain_id(),
         ))
     }
 
@@ -348,10 +347,8 @@ impl AnchorProvider for EthereumProvider {
         }
 
         // Verify transaction succeeded
-        if let Ok(receipt) = self.provider.get_transaction_receipt(tx_hash).await {
-            if let Some(r) = receipt {
-                return Ok(r.status());
-            }
+        if let Ok(Some(r)) = self.provider.get_transaction_receipt(tx_hash).await {
+            return Ok(r.status());
         }
 
         Ok(true)
@@ -432,7 +429,7 @@ impl AnchorProvider for EthereumProvider {
         Ok(AnchorProof::new(
             commitment,
             &self.id,
-            &self.config.chain.moloch_chain_id(),
+            self.config.chain.moloch_chain_id(),
             tx_id.clone(),
             block_number,
             block_hash,

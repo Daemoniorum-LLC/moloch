@@ -900,8 +900,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_peer_discovery_max_peers() {
-        let mut config = DiscoveryConfig::default();
-        config.max_peers = 5;
+        let config = DiscoveryConfig {
+            max_peers: 5,
+            ..Default::default()
+        };
         let discovery = PeerDiscovery::new(config);
 
         // Add 5 peers

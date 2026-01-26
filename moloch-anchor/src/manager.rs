@@ -496,7 +496,7 @@ mod tests {
             ProviderStatus::Available
         }
 
-        async fn submit(&self, commitment: &Commitment) -> Result<AnchorTx> {
+        async fn submit(&self, _commitment: &Commitment) -> Result<AnchorTx> {
             Ok(AnchorTx::pending(TxId::new("mock_tx"), &self.id, "testnet"))
         }
 

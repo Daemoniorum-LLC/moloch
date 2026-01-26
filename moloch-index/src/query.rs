@@ -288,6 +288,7 @@ impl CompositeQuery {
     }
 
     /// Negate a query.
+    #[allow(clippy::should_implement_trait)]
     pub fn not(query: CompositeQuery) -> Self {
         CompositeQuery::Not(Box::new(query))
     }
@@ -357,7 +358,7 @@ impl CompositeQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     use moloch_core::{
         crypto::SecretKey,
         event::{ActorKind, EventType},

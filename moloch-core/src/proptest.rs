@@ -20,6 +20,7 @@ fn arb_bytes32() -> impl Strategy<Value = [u8; 32]> {
 }
 
 /// Generate arbitrary 64-byte arrays.
+#[allow(dead_code)]
 fn arb_bytes64() -> impl Strategy<Value = [u8; 64]> {
     prop::array::uniform32(any::<u8>()).prop_flat_map(|first| {
         prop::array::uniform32(any::<u8>()).prop_map(move |second| {
@@ -32,6 +33,7 @@ fn arb_bytes64() -> impl Strategy<Value = [u8; 64]> {
 }
 
 /// Generate arbitrary Hash values.
+#[allow(dead_code)]
 fn arb_hash() -> impl Strategy<Value = Hash> {
     arb_bytes32().prop_map(Hash::from_bytes)
 }
