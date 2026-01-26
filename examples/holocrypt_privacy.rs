@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
 
     let event = AuditEvent::builder()
         .now()
-        .event_type(EventType::Access)
+        .event_type(EventType::AccessGranted { permission: "download".into() })
         .actor(actor)
         .resource(resource)
         .outcome(Outcome::Success)
@@ -49,8 +49,8 @@ fn main() -> anyhow::Result<()> {
         .build(&sealing_key)?;
 
     println!("Encrypted event created:");
-    println!("  Event type visible: {:?}", encrypted.event_type());
-    println!("  Resource visible: {:?}", encrypted.resource());
+    println!("  Event type visible: {:?}", encrypted.header.event_type);
+    println!("  Resource visible: {:?}", encrypted.header.resource);
     println!("  Actor encrypted: <hidden>");
     println!("  Metadata encrypted: <hidden>");
 
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     let decrypted = encrypted.decrypt(&opening_key)?;
     println!(
         "\nDecrypted event - actor restored: {:?}",
-        decrypted.actor()
+        &decrypted.actor
     );
 
     // 2. Zero-Knowledge Proofs

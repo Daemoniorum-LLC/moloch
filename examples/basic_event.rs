@@ -40,12 +40,12 @@ fn main() -> anyhow::Result<()> {
 
     println!("\nCreated audit event:");
     println!("  Event ID: {:?}", event.id());
-    println!("  Timestamp: {}", event.timestamp_ms());
-    println!("  Event Type: {:?}", event.event_type());
-    println!("  Outcome: {:?}", event.outcome());
+    println!("  Timestamp: {}", event.event_time);
+    println!("  Event Type: {:?}", event.event_type);
+    println!("  Outcome: {:?}", event.outcome);
 
     // Verify the signature
-    let is_valid = event.verify()?;
+    let is_valid = event.attester().verify(&event.canonical_bytes(), event.signature()).is_ok();
     println!("\nSignature valid: {}", is_valid);
 
     // Serialize to JSON

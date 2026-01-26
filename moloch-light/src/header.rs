@@ -237,16 +237,22 @@ impl HeaderChain {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
+    use moloch_core::block::SealerId;
     use moloch_core::crypto::SecretKey;
 
     fn create_test_header(height: u64) -> BlockHeader {
+        let secret = SecretKey::generate();
+        let sealer = SealerId::new(secret.public_key());
         BlockHeader {
             height,
             parent: BlockHash(Hash::ZERO),
             events_root: Hash::ZERO,
-            state_root: Hash::ZERO,
-            timestamp_ms: 0,
-            sealer_id: moloch_core::SealerId::default(),
+            events_count: 0,
+            mmr_root: Hash::ZERO,
+            timestamp: Utc::now(),
+            sealer,
+            seal: secret.sign(&[0u8; 32]),
         }
     }
 
@@ -276,7 +282,7 @@ mod tests {
 
         let header = create_test_header(1);
         let message = header.hash();
-        let signature = secret.sign(message.as_bytes());
+        let signature = secret.sign(message.as_hash().as_bytes());
 
         let trusted = TrustedHeader::new(header, vec![(public.clone(), signature)], Hash::ZERO);
 
@@ -294,7 +300,7 @@ mod tests {
         let message = header.hash();
 
         // Sign with secret2 but try to verify with public1
-        let wrong_signature = secret2.sign(message.as_bytes());
+        let wrong_signature = secret2.sign(message.as_hash().as_bytes());
 
         let trusted =
             TrustedHeader::new(header, vec![(public1.clone(), wrong_signature)], Hash::ZERO);
@@ -312,8 +318,8 @@ mod tests {
         let message = header.hash();
 
         // Create 2 valid signatures (need 2 for 2/3+1 of 3)
-        let sig0 = validators[0].sign(message.as_bytes());
-        let sig1 = validators[1].sign(message.as_bytes());
+        let sig0 = validators[0].sign(message.as_hash().as_bytes());
+        let sig1 = validators[1].sign(message.as_hash().as_bytes());
 
         let trusted = TrustedHeader::new(
             header,
@@ -338,7 +344,7 @@ mod tests {
         let message = header.hash();
 
         // Only 1 valid signature
-        let sig0 = validators[0].sign(message.as_bytes());
+        let sig0 = validators[0].sign(message.as_hash().as_bytes());
         // Create an invalid signature for the second slot
         let invalid_sig = validators[2].sign(b"wrong message");
 

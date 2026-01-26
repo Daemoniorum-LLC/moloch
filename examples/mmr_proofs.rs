@@ -29,8 +29,8 @@ fn main() -> anyhow::Result<()> {
 
     println!("\nMMR Stats:");
     println!("  Leaf count: {}", mmr.leaf_count());
-    println!("  Total nodes: {}", mmr.node_count());
-    println!("  Root: {:?}", mmr.root()?);
+    println!("  Total nodes: {}", mmr.size());
+    println!("  Root: {:?}", mmr.root());
 
     // Generate and verify inclusion proofs
     println!("\n=== Inclusion Proofs ===\n");
@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
             "Proof for '{}' (pos {}): {} siblings, valid: {}",
             data_items[i],
             pos,
-            proof.siblings().len(),
+            proof.siblings.len(),
             is_valid
         );
     }
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     let batch_positions = mmr.append_batch(&batch_data)?;
     println!("Appended {} items in batch", batch_positions.len());
     println!("New leaf count: {}", mmr.leaf_count());
-    println!("New root: {:?}", mmr.root()?);
+    println!("New root: {:?}", mmr.root());
 
     // Demonstrate proof portability
     println!("\n=== Proof Portability ===\n");
@@ -68,7 +68,7 @@ fn main() -> anyhow::Result<()> {
     println!("Serialized proof size: {} bytes", serialized.len());
 
     // Anyone with the root can verify the proof
-    let root = mmr.root()?;
+    let root = mmr.root();
     println!("Root hash: {:?}", root);
     println!("Proof can be verified against this root by any party");
 
