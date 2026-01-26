@@ -7,15 +7,14 @@
 //! - Finality lag monitoring
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 use moloch_chain::ValidatorSet;
-use moloch_core::block::{BlockHash, BlockHeader, SealerId};
+use moloch_core::block::{BlockHash, SealerId};
 use moloch_core::crypto::{Hash, PublicKey, Sig};
 
 use crate::votes::{AggregatedVotes, Vote, VoteType};

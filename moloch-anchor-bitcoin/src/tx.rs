@@ -90,6 +90,7 @@ pub fn parse_op_return_script(script: &ScriptBuf) -> Result<(Vec<u8>, Vec<u8>, V
 
 /// UTXO for building transactions.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Utxo {
     /// Previous output point.
     pub outpoint: OutPoint,
@@ -100,6 +101,7 @@ pub struct Utxo {
 }
 
 /// Transaction builder for anchor transactions.
+#[allow(dead_code)]
 pub struct AnchorTxBuilder {
     /// Network.
     network: Network,
@@ -274,6 +276,7 @@ pub fn generate_merkle_proof(
 }
 
 /// Verify a merkle proof.
+#[allow(dead_code)]
 pub fn verify_merkle_proof(
     txid: &[u8; 32],
     merkle_root: &[u8; 32],

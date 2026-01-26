@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::checkpoint::TrustedCheckpoint;
-use crate::errors::{LightClientError, Result};
+use crate::errors::Result;
 use crate::header::{HeaderChain, TrustedHeader};
 
 /// Sync engine configuration.

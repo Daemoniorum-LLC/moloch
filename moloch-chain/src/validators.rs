@@ -5,7 +5,7 @@
 //! - Round-robin leader selection
 //! - Validator rotation (add/remove)
 
-use moloch_core::{block::SealerId, crypto::PublicKey, Hash};
+use moloch_core::{block::SealerId, Hash};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashSet;
 

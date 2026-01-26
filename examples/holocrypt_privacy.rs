@@ -81,7 +81,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     // Prove event type without revealing actor
-    let type_proof = EventProof::builder()
+    let _type_proof = EventProof::builder()
         .event(encrypted.clone())
         .prove_event_type("Access")
         .build()?;
@@ -105,7 +105,7 @@ fn main() -> anyhow::Result<()> {
     share_set.add(shares[0].clone());
     share_set.add(shares[1].clone());
 
-    let threshold_decrypted = threshold_event.unseal(&share_set)?;
+    let _threshold_decrypted = threshold_event.unseal(&share_set)?;
     println!("  Decryption with 2 shares: SUCCESS");
 
     // 4. Post-Quantum Encryption

@@ -1,13 +1,11 @@
 //! Ethereum AnchorProvider implementation.
 
-use std::str::FromStr;
-use std::sync::Arc;
 
-use alloy::consensus::{Transaction as TxTrait, TxEnvelope};
+use alloy::consensus::Transaction as TxTrait;
 use alloy::network::{EthereumWallet, TransactionBuilder};
-use alloy::primitives::{Address, Bytes, FixedBytes, TxHash, U256};
+use alloy::primitives::{Address, Bytes, TxHash, U256};
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
-use alloy::rpc::types::{TransactionReceipt, TransactionRequest};
+use alloy::rpc::types::TransactionRequest;
 use alloy::signers::local::PrivateKeySigner;
 use alloy::transports::http::{Client, Http};
 use async_trait::async_trait;
@@ -15,13 +13,13 @@ use parking_lot::RwLock;
 
 use moloch_anchor::{
     AnchorCost, AnchorProof, AnchorProvider, AnchorStatus, AnchorTx, Commitment, FinalityType,
-    ProviderCapabilities, ProviderInfo, ProviderStatus, SpvProof, TxId,
+    ProviderCapabilities, ProviderInfo, ProviderStatus, TxId,
 };
 use moloch_core::Hash;
 
-use crate::config::{AnchorMethod, Chain, EthereumConfig};
+use crate::config::{AnchorMethod, EthereumConfig};
 use crate::error::{EthereumError, Result};
-use crate::{ANCHOR_DATA_SIZE, DEFAULT_CONFIRMATIONS, MOLOCH_SELECTOR};
+use crate::{ANCHOR_DATA_SIZE, MOLOCH_SELECTOR};
 
 /// Ethereum anchor provider.
 ///

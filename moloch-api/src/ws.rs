@@ -6,7 +6,6 @@
 //! - Filter by actor/resource
 //! - Automatic reconnection
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -24,7 +23,6 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use moloch_core::block::Block;
-use moloch_core::crypto::Hash;
 use moloch_core::event::AuditEvent;
 
 use crate::rest::{BlockInfo, EventInfo};

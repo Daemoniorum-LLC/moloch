@@ -493,10 +493,10 @@ mod tests {
     use chrono::Duration;
     use moloch_core::{
         crypto::SecretKey,
-        event::{ActorKind, Outcome},
+        event::ActorKind,
     };
     use moloch_storage::RocksStorage;
-    use std::sync::Arc;
+    
 
     fn test_event(key: &SecretKey, resource_id: &str) -> AuditEvent {
         let actor = ActorId::new(key.public_key(), ActorKind::User);

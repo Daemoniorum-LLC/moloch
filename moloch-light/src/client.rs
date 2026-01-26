@@ -7,12 +7,12 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::checkpoint::{Checkpoint, CheckpointRegistry, TrustedCheckpoint};
-use crate::errors::{LightClientError, Result};
+use crate::errors::Result;
 use crate::header::{HeaderStore, TrustedHeader};
 use crate::proof::{CompactProof, ProofVerifier};
 use crate::sync::{SyncConfig, SyncStatus};
 
-use moloch_core::{EventId, Hash, PublicKey};
+use moloch_core::{Hash, PublicKey};
 
 /// Light client configuration.
 #[derive(Debug, Clone)]

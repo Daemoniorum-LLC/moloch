@@ -6,12 +6,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use tokio::sync::mpsc;
 
 use crate::commitment::Commitment;
 use crate::errors::{AnchorError, Result};
 use crate::proof::{AnchorProof, AnchorStatus, ProofBundle, Verification};
-use crate::provider::{AnchorProvider, AnchorTx, TxId};
+#[cfg(test)]
+use crate::provider::AnchorProvider;
+use crate::provider::{AnchorTx, TxId};
 use crate::registry::{ProviderRegistry, SelectionStrategy};
 use crate::scheduler::{AnchorPriority, AnchorRequest, AnchorScheduler};
 
@@ -233,7 +234,7 @@ impl AnchorManager {
                     self.registry.record_success(&provider_id);
                     success = true;
                 }
-                Err(e) => {
+                Err(_e) => {
                     let provider_id = provider.id().to_string();
                     self.registry.record_failure(&provider_id);
                     // Continue trying other providers

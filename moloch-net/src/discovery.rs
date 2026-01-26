@@ -8,18 +8,15 @@
 //! Also provides peer scoring for connection quality.
 
 use std::collections::{HashMap, HashSet};
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::Arc;
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, info, warn};
 
 use crate::protocol::PeerId;
-use crate::transport::ConnectionPool;
-use moloch_core::crypto::PublicKey;
 
 /// Information about a known peer.
 #[derive(Debug, Clone, Serialize, Deserialize)]

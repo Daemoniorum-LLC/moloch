@@ -126,6 +126,7 @@ pub enum SnapshotError {
 pub type Result<T> = std::result::Result<T, SnapshotError>;
 
 /// Snapshot builder for creating snapshots from storage.
+#[allow(dead_code)]
 pub struct SnapshotBuilder<'a, S> {
     storage: &'a S,
     height: Option<u64>,

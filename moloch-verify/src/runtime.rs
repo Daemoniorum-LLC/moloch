@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-use crate::invariants::{ChainInvariants, InvariantViolation};
+use crate::invariants::InvariantViolation;
 use crate::ChainState;
 
 /// Result of a runtime check.

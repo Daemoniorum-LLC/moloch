@@ -12,7 +12,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use arcanum_holocrypt::pqc::{PqcContainer, PqcEnvelope, PqcKeyPair, WrappedKey};
+use arcanum_holocrypt::pqc::{PqcContainer, PqcEnvelope, PqcKeyPair};
 use arcanum_pqc::kem::{MlKem768DecapsulationKey, MlKem768EncapsulationKey};
 
 use moloch_core::event::AuditEvent;

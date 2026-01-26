@@ -11,7 +11,6 @@ use moloch_core::{
     AuditEvent, Block, Result,
 };
 use moloch_storage::ChainStore;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::interval;
@@ -19,7 +18,6 @@ use tracing::{debug, info, warn};
 
 use crate::mempool::Mempool;
 use crate::state::ChainState;
-use crate::validators::ValidatorSet;
 
 /// Configuration for the block producer.
 #[derive(Debug, Clone)]
@@ -240,6 +238,7 @@ mod tests {
     use crate::validators::ValidatorSet;
     use moloch_core::event::{ActorId, ActorKind, EventType, ResourceId, ResourceKind};
     use moloch_storage::RocksStorage;
+    use std::sync::Arc;
 
     fn test_event(key: &SecretKey) -> AuditEvent {
         let actor = ActorId::new(key.public_key(), ActorKind::User);

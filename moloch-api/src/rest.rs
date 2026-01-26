@@ -19,11 +19,11 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
-use moloch_core::block::{Block, BlockHash, BlockHeader};
+use moloch_core::block::Block;
 use moloch_core::crypto::Hash;
-use moloch_core::event::{ActorId, AuditEvent, EventType, ResourceId};
+use moloch_core::event::AuditEvent;
 
 use crate::server::ApiState;
 

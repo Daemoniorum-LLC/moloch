@@ -5,18 +5,16 @@
 //! - Proposal, prevote, precommit phases
 //! - Timeout handling for liveness
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 
 use moloch_chain::ValidatorSet;
 use moloch_core::block::{Block, BlockBuilder, BlockHash, BlockHeader, SealerId};
-use moloch_core::crypto::{Hash, SecretKey, Sig};
+use moloch_core::crypto::{SecretKey, Sig};
 use moloch_core::event::AuditEvent;
 
 use crate::votes::{Vote, VoteSet, VoteType};
@@ -793,6 +791,7 @@ pub struct ConsensusStats {
 mod tests {
     use super::*;
     use moloch_core::event::{ActorId, ActorKind, EventType, ResourceId, ResourceKind};
+    use moloch_core::Hash;
 
     fn make_validator() -> (SecretKey, SealerId) {
         let key = SecretKey::generate();

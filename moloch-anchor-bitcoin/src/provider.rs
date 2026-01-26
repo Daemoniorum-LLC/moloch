@@ -17,9 +17,9 @@ use crate::config::BitcoinConfig;
 use crate::error::{BitcoinError, Result};
 use crate::rpc::BitcoinRpc;
 use crate::tx::{
-    build_op_return_script, generate_merkle_proof, parse_op_return_script, AnchorTxBuilder, Utxo,
+    generate_merkle_proof, parse_op_return_script, AnchorTxBuilder, Utxo,
 };
-use crate::{ANCHOR_DATA_SIZE, DEFAULT_CONFIRMATIONS, MAX_OP_RETURN_SIZE};
+use crate::MAX_OP_RETURN_SIZE;
 
 /// Bitcoin anchor provider.
 ///

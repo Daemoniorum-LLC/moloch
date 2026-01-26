@@ -66,6 +66,7 @@ struct ProviderEntry {
 }
 
 /// Registry of anchor providers.
+#[allow(dead_code)]
 pub struct ProviderRegistry {
     /// Configuration.
     config: RegistryConfig,

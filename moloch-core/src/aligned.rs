@@ -9,11 +9,14 @@
 //!
 //! ```rust
 //! use moloch_core::aligned::{AlignedHash, AlignedHashArray};
+//! use moloch_core::Hash;
 //!
 //! // Single aligned hash (for hot paths)
+//! let some_hash = Hash::ZERO;
 //! let hash = AlignedHash::from(some_hash);
 //!
 //! // Batch of aligned hashes (for SIMD operations)
+//! let hashes = [Hash::ZERO; 4];
 //! let mut batch = AlignedHashArray::<8>::default();
 //! for (i, h) in hashes.iter().enumerate() {
 //!     batch.set(i, *h);

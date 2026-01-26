@@ -184,7 +184,7 @@ pub mod testnet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use moloch_core::BlockHeader;
+    
 
     #[test]
     fn test_checkpoint_registry() {

@@ -208,7 +208,7 @@ impl<'a, S: ChainStore> Iterator for MmrNodeIterator<'a, S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::traits::EventStore;
+    
     use crate::RocksStorage;
     use moloch_core::{
         block::{BlockBuilder, SealerId},

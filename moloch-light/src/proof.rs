@@ -4,7 +4,7 @@
 //! full blocks. This module provides compact proof formats optimized
 //! for mobile and browser clients.
 
-use moloch_core::{BlockHash, EventId, Hash, PublicKey, Sig};
+use moloch_core::{BlockHash, EventId, Hash};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{LightClientError, Result};

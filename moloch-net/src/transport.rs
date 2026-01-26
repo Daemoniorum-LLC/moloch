@@ -9,21 +9,18 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use futures::StreamExt;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, oneshot, RwLock};
-use tokio::time::{interval, timeout};
-use tokio_rustls::{TlsAcceptor, TlsConnector};
-use tracing::{debug, error, info, trace, warn};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::sync::RwLock;
+use tracing::error;
 
+#[cfg(test)]
+use crate::protocol::{PingMessage, StatusMessage};
 use crate::protocol::{
-    generate_message_id, DisconnectReason, GoodbyeMessage, HelloAckMessage, HelloMessage, Message,
-    MessageCodec, PeerId, PingMessage, PongMessage, ProtocolVersion, StatusMessage,
+    generate_message_id, DisconnectReason, HelloAckMessage, HelloMessage, Message,
+    MessageCodec, PeerId, ProtocolVersion,
 };
-use moloch_core::crypto::{Hash, PublicKey, SecretKey};
+use moloch_core::crypto::{PublicKey, SecretKey};
 
 /// Network configuration.
 #[derive(Debug, Clone)]

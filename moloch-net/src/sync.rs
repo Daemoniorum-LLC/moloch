@@ -8,14 +8,13 @@
 //!
 //! The sync manager coordinates with peers to efficiently sync the chain.
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
+use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, oneshot, RwLock};
-use tracing::{debug, error, info, trace, warn};
+use tokio::sync::RwLock;
+use tracing::{error, info, warn};
 
 use crate::discovery::PeerInfo;
 use crate::protocol::{
@@ -217,6 +216,7 @@ pub struct Checkpoint {
 
 /// A pending sync request.
 #[derive(Debug)]
+#[allow(dead_code)]
 struct PendingRequest {
     /// Request ID.
     id: MessageId,
@@ -232,6 +232,7 @@ struct PendingRequest {
 
 /// Type of sync request.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum RequestKind {
     Headers { start: u64, count: u32 },
     Blocks { start: u64, count: u32 },

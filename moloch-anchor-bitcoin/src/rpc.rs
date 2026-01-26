@@ -1,6 +1,5 @@
 //! Bitcoin RPC client wrapper.
 
-use std::sync::Arc;
 
 use bitcoin::consensus::encode;
 use bitcoin::{Block, BlockHash, Transaction, Txid};

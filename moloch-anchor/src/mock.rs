@@ -118,6 +118,7 @@ impl MockProviderConfig {
 
 /// Stored transaction in the mock.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct MockTransaction {
     tx_id: TxId,
     commitment: Commitment,

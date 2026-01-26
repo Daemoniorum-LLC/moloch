@@ -89,7 +89,12 @@ pub enum AssertionType {
     /// Value is in set.
     InSet(Vec<String>),
     /// Numeric value is in range.
-    InRange { min: i64, max: i64 },
+    InRange {
+        /// Minimum value (inclusive).
+        min: i64,
+        /// Maximum value (inclusive).
+        max: i64,
+    },
     /// Value matches pattern.
     Matches(String),
     /// Value exists (non-null).
@@ -140,7 +145,7 @@ impl EventProof {
     }
 
     /// Verify the ZK proof data.
-    fn verify_proof_data(&self, event: &EncryptedEvent) -> Result<bool> {
+    fn verify_proof_data(&self, _event: &EncryptedEvent) -> Result<bool> {
         // Deserialize proof data
         let proof_record: ProofRecord = serde_json::from_slice(&self.proof_data)?;
 

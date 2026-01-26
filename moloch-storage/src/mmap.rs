@@ -30,7 +30,7 @@ use memmap2::{MmapMut, MmapOptions};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -114,6 +114,7 @@ impl StorageMeta {
 /// Provides ultra-fast access to chain data via memory-mapped files.
 /// All data is persisted immediately (append-only) and can be accessed
 /// without deserialization overhead using rkyv.
+#[allow(dead_code)]
 pub struct MmapStorage {
     /// Base directory.
     base_path: PathBuf,
@@ -283,6 +284,7 @@ impl MmapStorage {
     }
 
     /// Read event data at offset.
+    #[allow(dead_code)]
     fn read_event_data(&self, offset: u64, len: usize) -> Result<Vec<u8>> {
         let mmap = self.events_mmap.read();
         let start = offset as usize;

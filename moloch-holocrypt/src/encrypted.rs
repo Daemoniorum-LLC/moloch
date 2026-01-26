@@ -9,8 +9,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use arcanum_holocrypt::container::{HoloCrypt, OpeningKey, SealingKey};
-use arcanum_holocrypt::prelude::*;
-use arcanum_signatures::ed25519::{Ed25519SigningKey, Ed25519VerifyingKey};
+use arcanum_signatures::ed25519::Ed25519VerifyingKey;
 
 use moloch_core::crypto::Hash;
 use moloch_core::event::{ActorId, AuditEvent, EventId, EventType, Outcome, ResourceId};

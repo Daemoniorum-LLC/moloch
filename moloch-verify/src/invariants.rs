@@ -1,6 +1,5 @@
 //! Chain invariants for formal verification.
 
-use moloch_core::{BlockHash, Hash};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -273,6 +272,7 @@ impl ChainInvariants {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use moloch_core::{BlockHash, Hash};
 
     struct MockState {
         height: u64,

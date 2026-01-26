@@ -7,7 +7,6 @@
 //! - Consensus (proposals, votes)
 
 use std::io::{self, Read, Write};
-use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -357,7 +357,7 @@ impl CompositeQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
+    
     use moloch_core::{
         crypto::SecretKey,
         event::{ActorKind, EventType},

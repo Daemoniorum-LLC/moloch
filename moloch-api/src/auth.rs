@@ -6,17 +6,14 @@
 //! - Rate limiting per key
 //! - Permission levels
 
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use axum::extract::{FromRequestParts, State};
-use axum::http::{request::Parts, StatusCode};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use moloch_core::hash;
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 

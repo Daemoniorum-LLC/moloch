@@ -46,6 +46,7 @@ impl Default for ConcurrentMempoolConfig {
 
 /// Metadata stored for each event in the mempool.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct EventMeta {
     /// When the event was added.
     added_at: DateTime<Utc>,

@@ -4,7 +4,6 @@
 //! supporting batching, rate limiting, and priority queuing.
 
 use std::collections::VecDeque;
-use std::sync::Arc;
 use std::time::Duration;
 
 use parking_lot::Mutex;
@@ -166,6 +165,7 @@ impl AnchorBatch {
 }
 
 /// Pending request in the queue.
+#[allow(dead_code)]
 struct QueuedRequest {
     request: AnchorRequest,
     queued_at: Instant,

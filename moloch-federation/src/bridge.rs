@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use crate::chain::ChainStatus;
 use crate::errors::{FederationError, Result};
-use crate::proof::{CrossChainReference, FinalityProof, ProofBundle};
+use crate::proof::{CrossChainReference, ProofBundle};
 
 use moloch_core::{BlockHash, EventId, Hash};
 
@@ -96,6 +96,7 @@ pub struct Bridge {
 }
 
 /// A pending request.
+#[allow(dead_code)]
 struct PendingRequest {
     /// Request ID.
     id: u64,
