@@ -8,15 +8,17 @@ use bitcoin::Txid;
 use parking_lot::RwLock;
 
 use moloch_anchor::{
-    AnchorCost, AnchorProof, AnchorProvider, AnchorStatus, AnchorTx, Commitment,
-    FinalityType, ProviderCapabilities, ProviderInfo, ProviderStatus, SpvProof, TxId,
+    AnchorCost, AnchorProof, AnchorProvider, AnchorStatus, AnchorTx, Commitment, FinalityType,
+    ProviderCapabilities, ProviderInfo, ProviderStatus, SpvProof, TxId,
 };
 use moloch_core::Hash;
 
 use crate::config::BitcoinConfig;
 use crate::error::{BitcoinError, Result};
 use crate::rpc::BitcoinRpc;
-use crate::tx::{build_op_return_script, generate_merkle_proof, parse_op_return_script, AnchorTxBuilder, Utxo};
+use crate::tx::{
+    build_op_return_script, generate_merkle_proof, parse_op_return_script, AnchorTxBuilder, Utxo,
+};
 use crate::{ANCHOR_DATA_SIZE, DEFAULT_CONFIRMATIONS, MAX_OP_RETURN_SIZE};
 
 /// Bitcoin anchor provider.
@@ -118,11 +120,16 @@ impl BitcoinProvider {
             .collect();
 
         if utxos.is_empty() {
-            return Err(BitcoinError::InsufficientFunds { need: 1000, have: 0 });
+            return Err(BitcoinError::InsufficientFunds {
+                need: 1000,
+                have: 0,
+            });
         }
 
         // Get change address
-        let change_address = self.rpc.get_new_address()?
+        let change_address = self
+            .rpc
+            .get_new_address()?
             .require_network(self.config.network.to_bitcoin_network())
             .map_err(|e| BitcoinError::InvalidAddress(e.to_string()))?;
 
@@ -155,9 +162,9 @@ impl BitcoinProvider {
         // Get transaction info
         let tx_info = self.rpc.get_raw_transaction_info(txid)?;
 
-        let block_hash = tx_info.blockhash.ok_or_else(|| {
-            BitcoinError::SpvProof("transaction not yet confirmed".into())
-        })?;
+        let block_hash = tx_info
+            .blockhash
+            .ok_or_else(|| BitcoinError::SpvProof("transaction not yet confirmed".into()))?;
 
         // Get block
         let block = self.rpc.get_block(&block_hash)?;
@@ -170,19 +177,12 @@ impl BitcoinProvider {
             .ok_or_else(|| BitcoinError::SpvProof("transaction not found in block".into()))?;
 
         // Generate merkle proof
-        let block_txids: Vec<Txid> = block
-            .txdata
-            .iter()
-            .map(|tx| tx.compute_txid())
-            .collect();
+        let block_txids: Vec<Txid> = block.txdata.iter().map(|tx| tx.compute_txid()).collect();
 
         let (merkle_path, index) = generate_merkle_proof(&block_txids, tx_index)?;
 
         // Convert merkle path to Hash
-        let path: Vec<Hash> = merkle_path
-            .iter()
-            .map(|h| Hash::from_bytes(*h))
-            .collect();
+        let path: Vec<Hash> = merkle_path.iter().map(|h| Hash::from_bytes(*h)).collect();
 
         // Serialize block header
         let header_bytes = bitcoin::consensus::encode::serialize(&block.header);
@@ -228,7 +228,9 @@ impl AnchorProvider for BitcoinProvider {
         self.update_status().await;
 
         if !matches!(*self.status.read(), ProviderStatus::Available) {
-            return Err(moloch_anchor::AnchorError::ProviderUnavailable(self.id.clone()));
+            return Err(moloch_anchor::AnchorError::ProviderUnavailable(
+                self.id.clone(),
+            ));
         }
 
         // Broadcast anchor transaction
@@ -264,8 +266,9 @@ impl AnchorProvider for BitcoinProvider {
             })?;
 
         // Parse OP_RETURN data
-        let (magic, commitment_hash, _chain_hash) = parse_op_return_script(&op_return.script_pubkey)
-            .map_err(|e| moloch_anchor::AnchorError::VerificationFailed(e.to_string()))?;
+        let (magic, commitment_hash, _chain_hash) =
+            parse_op_return_script(&op_return.script_pubkey)
+                .map_err(|e| moloch_anchor::AnchorError::VerificationFailed(e.to_string()))?;
 
         // Verify magic
         if magic != crate::MOLOCH_MAGIC {
@@ -388,8 +391,7 @@ impl AnchorProvider for BitcoinProvider {
         // Convert to BTC
         let fee_btc = fee_sats as f64 / 100_000_000.0;
 
-        Ok(AnchorCost::new(fee_btc, "BTC")
-            .with_time(600 * self.config.required_confirmations))
+        Ok(AnchorCost::new(fee_btc, "BTC").with_time(600 * self.config.required_confirmations))
     }
 
     async fn block_height(&self) -> moloch_anchor::Result<u64> {

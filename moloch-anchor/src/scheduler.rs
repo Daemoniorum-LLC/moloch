@@ -213,7 +213,8 @@ impl AnchorScheduler {
         };
 
         self.queues[priority].lock().push_back(queued);
-        self.queued_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.queued_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         Ok(())
     }
@@ -224,7 +225,8 @@ impl AnchorScheduler {
         for priority in (0..4).rev() {
             let mut queue = self.queues[priority].lock();
             if let Some(queued) = queue.pop_front() {
-                self.queued_count.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                self.queued_count
+                    .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                 return Some(queued.request);
             }
         }
@@ -240,7 +242,8 @@ impl AnchorScheduler {
             let mut queue = self.queues[priority].lock();
             while requests.len() < max_count {
                 if let Some(queued) = queue.pop_front() {
-                    self.queued_count.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                    self.queued_count
+                        .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                     requests.push(queued.request);
                 } else {
                     break;
@@ -320,7 +323,8 @@ impl AnchorScheduler {
             queue.lock().clear();
         }
         self.batches.lock().clear();
-        self.queued_count.store(0, std::sync::atomic::Ordering::Relaxed);
+        self.queued_count
+            .store(0, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -343,9 +347,10 @@ impl SchedulerHandle {
 
     /// Submit a request.
     pub async fn submit(&self, request: AnchorRequest) -> Result<()> {
-        self.sender.send(request).await.map_err(|_| {
-            crate::errors::AnchorError::Internal("Scheduler channel closed".into())
-        })
+        self.sender
+            .send(request)
+            .await
+            .map_err(|_| crate::errors::AnchorError::Internal("Scheduler channel closed".into()))
     }
 }
 
@@ -366,17 +371,26 @@ mod tests {
         let scheduler = AnchorScheduler::new();
 
         // Submit in mixed order
-        scheduler.submit(AnchorRequest::new(
-            Commitment::new("chain", Hash::ZERO, 1)
-        ).with_priority(AnchorPriority::Low)).unwrap();
+        scheduler
+            .submit(
+                AnchorRequest::new(Commitment::new("chain", Hash::ZERO, 1))
+                    .with_priority(AnchorPriority::Low),
+            )
+            .unwrap();
 
-        scheduler.submit(AnchorRequest::new(
-            Commitment::new("chain", Hash::ZERO, 2)
-        ).with_priority(AnchorPriority::Critical)).unwrap();
+        scheduler
+            .submit(
+                AnchorRequest::new(Commitment::new("chain", Hash::ZERO, 2))
+                    .with_priority(AnchorPriority::Critical),
+            )
+            .unwrap();
 
-        scheduler.submit(AnchorRequest::new(
-            Commitment::new("chain", Hash::ZERO, 3)
-        ).with_priority(AnchorPriority::Normal)).unwrap();
+        scheduler
+            .submit(
+                AnchorRequest::new(Commitment::new("chain", Hash::ZERO, 3))
+                    .with_priority(AnchorPriority::Normal),
+            )
+            .unwrap();
 
         // Should get Critical first
         let req = scheduler.next().unwrap();
@@ -398,17 +412,20 @@ mod tests {
     fn test_batching() {
         let scheduler = AnchorScheduler::new();
 
-        scheduler.add_to_batch("bitcoin",
+        scheduler.add_to_batch(
+            "bitcoin",
             Commitment::new("chain", Hash::ZERO, 1),
-            AnchorPriority::Normal
+            AnchorPriority::Normal,
         );
-        scheduler.add_to_batch("bitcoin",
+        scheduler.add_to_batch(
+            "bitcoin",
             Commitment::new("chain", Hash::ZERO, 2),
-            AnchorPriority::High
+            AnchorPriority::High,
         );
-        scheduler.add_to_batch("ethereum",
+        scheduler.add_to_batch(
+            "ethereum",
             Commitment::new("chain", Hash::ZERO, 3),
-            AnchorPriority::Normal
+            AnchorPriority::Normal,
         );
 
         assert_eq!(scheduler.pending_batch_count(), 2);
@@ -426,9 +443,9 @@ mod tests {
         let scheduler = AnchorScheduler::new();
 
         for i in 0..10 {
-            scheduler.submit(AnchorRequest::new(
-                Commitment::new("chain", Hash::ZERO, i)
-            )).unwrap();
+            scheduler
+                .submit(AnchorRequest::new(Commitment::new("chain", Hash::ZERO, i)))
+                .unwrap();
         }
 
         assert_eq!(scheduler.queue_depth(), 10);

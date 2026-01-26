@@ -172,7 +172,9 @@ impl PeerScore {
     /// Calculate overall score from components.
     pub fn calculate(&mut self) {
         // Weighted average: latency 30%, reliability 40%, behavior 30%
-        self.value = (self.latency_score * 30 + self.reliability_score * 40 + self.behavior_score * 30) / 100;
+        self.value =
+            (self.latency_score * 30 + self.reliability_score * 40 + self.behavior_score * 30)
+                / 100;
         self.value = self.value.min(Self::MAX_SCORE);
         self.last_updated = Utc::now();
     }
@@ -459,9 +461,7 @@ impl PeerDiscovery {
     /// Resolve a DNS seed to addresses.
     async fn resolve_dns(&self, host: &str) -> Result<Vec<SocketAddr>, std::io::Error> {
         // Tokio's async DNS resolution
-        let addrs: Vec<SocketAddr> = tokio::net::lookup_host(host)
-            .await?
-            .collect();
+        let addrs: Vec<SocketAddr> = tokio::net::lookup_host(host).await?.collect();
         Ok(addrs)
     }
 
@@ -672,12 +672,8 @@ impl PeerDiscovery {
                 }
                 // Check if stale
                 match p.last_seen {
-                    Some(last) => {
-                        (now - last).num_milliseconds() > max_age_ms
-                    }
-                    None => {
-                        (now - p.first_seen).num_milliseconds() > max_age_ms
-                    }
+                    Some(last) => (now - last).num_milliseconds() > max_age_ms,
+                    None => (now - p.first_seen).num_milliseconds() > max_age_ms,
                 }
             })
             .map(|(id, _)| id.clone())
@@ -699,14 +695,32 @@ impl PeerDiscovery {
 
         DiscoveryStats {
             total_peers: peers.len(),
-            connected_peers: peers.values().filter(|p| p.state == PeerState::Connected).count(),
-            known_peers: peers.values().filter(|p| p.state == PeerState::Known).count(),
-            disconnected_peers: peers.values().filter(|p| p.state == PeerState::Disconnected).count(),
+            connected_peers: peers
+                .values()
+                .filter(|p| p.state == PeerState::Connected)
+                .count(),
+            known_peers: peers
+                .values()
+                .filter(|p| p.state == PeerState::Known)
+                .count(),
+            disconnected_peers: peers
+                .values()
+                .filter(|p| p.state == PeerState::Disconnected)
+                .count(),
             banned_peers: banned.len(),
             good_peers: peers.values().filter(|p| p.score.is_good()).count(),
-            static_peers: peers.values().filter(|p| p.source == DiscoverySource::Static).count(),
-            dns_peers: peers.values().filter(|p| p.source == DiscoverySource::Dns).count(),
-            exchanged_peers: peers.values().filter(|p| p.source == DiscoverySource::PeerExchange).count(),
+            static_peers: peers
+                .values()
+                .filter(|p| p.source == DiscoverySource::Static)
+                .count(),
+            dns_peers: peers
+                .values()
+                .filter(|p| p.source == DiscoverySource::Dns)
+                .count(),
+            exchanged_peers: peers
+                .values()
+                .filter(|p| p.source == DiscoverySource::PeerExchange)
+                .count(),
         }
     }
 }
@@ -794,7 +808,11 @@ mod tests {
 
     #[test]
     fn test_peer_info_success_rate() {
-        let mut info = PeerInfo::new(test_peer_id(), vec![test_addr(8000)], DiscoverySource::Static);
+        let mut info = PeerInfo::new(
+            test_peer_id(),
+            vec![test_addr(8000)],
+            DiscoverySource::Static,
+        );
 
         info.record_success();
         info.record_success();
@@ -812,7 +830,10 @@ mod tests {
     #[test]
     fn test_discovery_source_display() {
         assert_eq!(format!("{}", DiscoverySource::Static), "static");
-        assert_eq!(format!("{}", DiscoverySource::PeerExchange), "peer_exchange");
+        assert_eq!(
+            format!("{}", DiscoverySource::PeerExchange),
+            "peer_exchange"
+        );
     }
 
     #[tokio::test]
@@ -889,7 +910,9 @@ mod tests {
         // Add 5 peers
         for i in 0..5 {
             let peer_id = test_peer_id();
-            discovery.add_incoming_peer(test_addr(8000 + i), peer_id).await;
+            discovery
+                .add_incoming_peer(test_addr(8000 + i), peer_id)
+                .await;
         }
 
         // 6th should fail
@@ -919,9 +942,13 @@ mod tests {
         let discovery = PeerDiscovery::new(config);
 
         let peer_id = test_peer_id();
-        discovery.add_static_peer(test_addr(8000), Some(peer_id.clone())).await;
+        discovery
+            .add_static_peer(test_addr(8000), Some(peer_id.clone()))
+            .await;
 
-        discovery.update_state(&peer_id, PeerState::Connecting).await;
+        discovery
+            .update_state(&peer_id, PeerState::Connecting)
+            .await;
         let info = discovery.get_peer(&peer_id).await.unwrap();
         assert_eq!(info.state, PeerState::Connecting);
     }
@@ -932,7 +959,9 @@ mod tests {
         let discovery = PeerDiscovery::new(config);
 
         let peer_id = test_peer_id();
-        discovery.add_static_peer(test_addr(8000), Some(peer_id.clone())).await;
+        discovery
+            .add_static_peer(test_addr(8000), Some(peer_id.clone()))
+            .await;
 
         discovery.update_latency(&peer_id, 50).await;
         let info = discovery.get_peer(&peer_id).await.unwrap();
@@ -947,8 +976,12 @@ mod tests {
         let peer1 = test_peer_id();
         let peer2 = test_peer_id();
 
-        discovery.add_static_peer(test_addr(8000), Some(peer1.clone())).await;
-        discovery.add_incoming_peer(test_addr(8001), peer2.clone()).await;
+        discovery
+            .add_static_peer(test_addr(8000), Some(peer1.clone()))
+            .await;
+        discovery
+            .add_incoming_peer(test_addr(8001), peer2.clone())
+            .await;
 
         let stats = discovery.stats().await;
         assert_eq!(stats.total_peers, 2);
@@ -964,8 +997,12 @@ mod tests {
         let peer1 = test_peer_id();
         let peer2 = test_peer_id();
 
-        discovery.add_static_peer(test_addr(8000), Some(peer1.clone())).await;
-        discovery.add_static_peer(test_addr(8001), Some(peer2.clone())).await;
+        discovery
+            .add_static_peer(test_addr(8000), Some(peer1.clone()))
+            .await;
+        discovery
+            .add_static_peer(test_addr(8001), Some(peer2.clone()))
+            .await;
 
         // Update one peer's score
         {
@@ -989,7 +1026,9 @@ mod tests {
         let discovery = PeerDiscovery::new(config);
 
         let peer_id = test_peer_id();
-        discovery.add_static_peer(test_addr(8000), Some(peer_id.clone())).await;
+        discovery
+            .add_static_peer(test_addr(8000), Some(peer_id.clone()))
+            .await;
         discovery.ban_peer(&peer_id, "test").await;
 
         // Banned peer shouldn't be in connect candidates

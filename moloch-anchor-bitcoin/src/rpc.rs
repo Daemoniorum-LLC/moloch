@@ -39,7 +39,8 @@ impl BitcoinRpc {
             config.rpc_url.clone()
         };
 
-        let client = Client::new(&url, auth).map_err(|e| BitcoinError::RpcConnection(e.to_string()))?;
+        let client =
+            Client::new(&url, auth).map_err(|e| BitcoinError::RpcConnection(e.to_string()))?;
 
         Ok(Self {
             client,
@@ -171,12 +172,10 @@ impl BitcoinRpc {
     pub fn get_tx_block_hash(&self, txid: &Txid) -> Result<Option<BlockHash>> {
         match self.get_raw_transaction_info(txid) {
             Ok(info) => Ok(info.blockhash),
-            Err(BitcoinError::TxNotFound(_)) => {
-                match self.get_transaction(txid) {
-                    Ok(info) => Ok(info.info.blockhash),
-                    Err(e) => Err(e),
-                }
-            }
+            Err(BitcoinError::TxNotFound(_)) => match self.get_transaction(txid) {
+                Ok(info) => Ok(info.info.blockhash),
+                Err(e) => Err(e),
+            },
             Err(e) => Err(e),
         }
     }

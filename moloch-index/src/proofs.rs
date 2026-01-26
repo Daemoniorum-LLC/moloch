@@ -239,9 +239,7 @@ impl<S: ChainStore> ProofGenerator<S> {
         new_height: u64,
     ) -> Result<ConsistencyProof> {
         if old_height > new_height {
-            return Err(moloch_core::Error::invalid_proof(
-                "old_height > new_height",
-            ));
+            return Err(moloch_core::Error::invalid_proof("old_height > new_height"));
         }
 
         // Get MMR roots at both heights
@@ -405,7 +403,7 @@ mod tests {
         crypto::SecretKey,
         event::{ActorId, ActorKind, EventType, ResourceId, ResourceKind},
     };
-    use moloch_storage::{RocksStorage, ChainStore, BlockStore};
+    use moloch_storage::{BlockStore, ChainStore, RocksStorage};
 
     fn test_event(key: &SecretKey, resource_id: &str) -> AuditEvent {
         let actor = ActorId::new(key.public_key(), ActorKind::User);

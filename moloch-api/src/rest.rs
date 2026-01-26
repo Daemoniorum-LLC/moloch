@@ -195,20 +195,16 @@ impl EventsApi {
 
         // Add to mempool
         match state.submit_event(event).await {
-            Ok(()) => {
-                Ok(Json(SubmitEventResponse {
-                    id,
-                    accepted: true,
-                    message: None,
-                }))
-            }
-            Err(e) => {
-                Ok(Json(SubmitEventResponse {
-                    id,
-                    accepted: false,
-                    message: Some(e.to_string()),
-                }))
-            }
+            Ok(()) => Ok(Json(SubmitEventResponse {
+                id,
+                accepted: true,
+                message: None,
+            })),
+            Err(e) => Ok(Json(SubmitEventResponse {
+                id,
+                accepted: false,
+                message: Some(e.to_string()),
+            })),
         }
     }
 
@@ -220,7 +216,9 @@ impl EventsApi {
         let hash = Hash::from_hex(&id)
             .map_err(|_| ApiError::BadRequest("invalid event ID".to_string()))?;
 
-        let event = state.get_event(&hash).await
+        let event = state
+            .get_event(&hash)
+            .await
             .ok_or_else(|| ApiError::NotFound(format!("event {} not found", id)))?;
 
         Ok(Json(EventInfo::from(&event)))
@@ -231,7 +229,9 @@ impl EventsApi {
         State(state): State<Arc<ApiState>>,
         Query(query): Query<EventsQuery>,
     ) -> Result<Json<EventsResponse>, ApiError> {
-        let events = state.query_events(&query).await
+        let events = state
+            .query_events(&query)
+            .await
             .map_err(|e| ApiError::Internal(e.to_string()))?;
 
         let has_more = events.len() >= query.limit;
@@ -298,10 +298,10 @@ impl BlocksApi {
     }
 
     /// GET /v1/blocks/latest - Get the latest block.
-    async fn get_latest(
-        State(state): State<Arc<ApiState>>,
-    ) -> Result<Json<BlockInfo>, ApiError> {
-        let block = state.get_latest_block().await
+    async fn get_latest(State(state): State<Arc<ApiState>>) -> Result<Json<BlockInfo>, ApiError> {
+        let block = state
+            .get_latest_block()
+            .await
             .ok_or_else(|| ApiError::NotFound("no blocks yet".to_string()))?;
 
         Ok(Json(BlockInfo::from(&block)))
@@ -312,7 +312,9 @@ impl BlocksApi {
         State(state): State<Arc<ApiState>>,
         Path(height): Path<u64>,
     ) -> Result<Json<BlockInfo>, ApiError> {
-        let block = state.get_block(height).await
+        let block = state
+            .get_block(height)
+            .await
             .ok_or_else(|| ApiError::NotFound(format!("block {} not found", height)))?;
 
         Ok(Json(BlockInfo::from(&block)))
@@ -388,7 +390,9 @@ impl ProofsApi {
         let hash = Hash::from_hex(&query.event_id)
             .map_err(|_| ApiError::BadRequest("invalid event ID".to_string()))?;
 
-        let proof = state.get_inclusion_proof(&hash).await
+        let proof = state
+            .get_inclusion_proof(&hash)
+            .await
             .ok_or_else(|| ApiError::NotFound(format!("event {} not found", query.event_id)))?;
 
         Ok(Json(proof))
@@ -400,10 +404,14 @@ impl ProofsApi {
         Query(query): Query<ConsistencyProofQuery>,
     ) -> Result<Json<ConsistencyProofResponse>, ApiError> {
         if query.from_height >= query.to_height {
-            return Err(ApiError::BadRequest("from_height must be less than to_height".to_string()));
+            return Err(ApiError::BadRequest(
+                "from_height must be less than to_height".to_string(),
+            ));
         }
 
-        let proof = state.get_consistency_proof(query.from_height, query.to_height).await
+        let proof = state
+            .get_consistency_proof(query.from_height, query.to_height)
+            .await
             .ok_or_else(|| ApiError::NotFound("heights not found".to_string()))?;
 
         Ok(Json(proof))

@@ -511,12 +511,7 @@ mod tests {
             created_at: 0,
         };
 
-        let snapshot = Snapshot::new(
-            header,
-            vec![1, 2, 3, 4],
-            vec![5, 6, 7, 8],
-            None,
-        );
+        let snapshot = Snapshot::new(header, vec![1, 2, 3, 4], vec![5, 6, 7, 8], None);
 
         let mut buffer = Vec::new();
         snapshot.write(&mut buffer).unwrap();

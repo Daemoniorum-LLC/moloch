@@ -89,7 +89,11 @@ impl Commitment {
 
     /// Size in bytes when serialized.
     pub fn encoded_size(&self) -> usize {
-        56 + self.metadata.as_ref().map(|m| m.encoded_size()).unwrap_or(0)
+        56 + self
+            .metadata
+            .as_ref()
+            .map(|m| m.encoded_size())
+            .unwrap_or(0)
     }
 }
 
@@ -148,7 +152,9 @@ impl CommitmentBuilder {
             mmr_root: self.mmr_root?,
             height: self.height?,
             event_count: self.event_count,
-            timestamp: self.timestamp.unwrap_or_else(|| chrono::Utc::now().timestamp()),
+            timestamp: self
+                .timestamp
+                .unwrap_or_else(|| chrono::Utc::now().timestamp()),
             metadata: self.metadata,
         })
     }
@@ -193,10 +199,18 @@ impl CommitmentData {
     /// Encoded size.
     pub fn encoded_size(&self) -> usize {
         let mut size = 0;
-        if self.previous.is_some() { size += 32; }
-        if self.validators_hash.is_some() { size += 32; }
-        if self.state_root.is_some() { size += 32; }
-        if let Some(ref data) = self.app_data { size += data.len(); }
+        if self.previous.is_some() {
+            size += 32;
+        }
+        if self.validators_hash.is_some() {
+            size += 32;
+        }
+        if self.state_root.is_some() {
+            size += 32;
+        }
+        if let Some(ref data) = self.app_data {
+            size += data.len();
+        }
         size
     }
 }

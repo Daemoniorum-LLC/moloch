@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 
 use crate::chain::ChainStatus;
 use crate::errors::{FederationError, Result};
@@ -143,7 +143,7 @@ impl Bridge {
         let reference = CrossChainReference::new(
             self.chain_id.clone(),
             event_id,
-            0, // Would be fetched from remote
+            0,                     // Would be fetched from remote
             BlockHash(Hash::ZERO), // Would be fetched from remote
         );
 
@@ -160,10 +160,9 @@ impl Bridge {
         }
 
         // Check if proof is present
-        let proof = reference.proof.as_ref()
-            .ok_or_else(|| FederationError::ProofVerificationFailed(
-                "no proof attached".to_string(),
-            ))?;
+        let proof = reference.proof.as_ref().ok_or_else(|| {
+            FederationError::ProofVerificationFailed("no proof attached".to_string())
+        })?;
 
         // Verify event proof matches reference
         if proof.event_proof.event_id != reference.event_id {

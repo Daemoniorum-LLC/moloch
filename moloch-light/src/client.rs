@@ -111,10 +111,7 @@ pub struct LightClient {
 
 impl LightClient {
     /// Create a new light client from a trusted checkpoint.
-    pub async fn new(
-        config: LightClientConfig,
-        checkpoint: TrustedCheckpoint,
-    ) -> Result<Self> {
+    pub async fn new(config: LightClientConfig, checkpoint: TrustedCheckpoint) -> Result<Self> {
         let headers = HeaderStore::with_checkpoint(checkpoint.header);
         let validators = checkpoint.validators;
 
@@ -181,7 +178,9 @@ impl LightClient {
 
         // Prune if needed
         if headers.len() > self.config.max_headers {
-            let prune_height = headers.finalized_height().saturating_sub(self.config.max_headers as u64);
+            let prune_height = headers
+                .finalized_height()
+                .saturating_sub(self.config.max_headers as u64);
             headers.prune_below(prune_height);
         }
 
@@ -245,8 +244,8 @@ pub mod wasm {
 
         /// Verify a proof (JSON format).
         pub async fn verify_proof_json(&self, proof_json: &str) -> Result<bool, JsValue> {
-            let proof: CompactProof = serde_json::from_str(proof_json)
-                .map_err(|e| JsValue::from_str(&e.to_string()))?;
+            let proof: CompactProof =
+                serde_json::from_str(proof_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
             self.inner
                 .verify_proof(&proof)

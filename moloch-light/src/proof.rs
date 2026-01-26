@@ -241,9 +241,10 @@ impl<'a> ProofVerifier<'a> {
     /// Verify an event inclusion proof.
     pub fn verify_event(&self, proof: &CompactProof) -> Result<()> {
         // Get the trusted header for this block
-        let header = self.headers.get(proof.block_height).ok_or_else(|| {
-            LightClientError::MissingHeader(proof.block_height)
-        })?;
+        let header = self
+            .headers
+            .get(proof.block_height)
+            .ok_or_else(|| LightClientError::MissingHeader(proof.block_height))?;
 
         // Verify block hash matches
         if header.hash() != proof.block_hash {
@@ -257,9 +258,10 @@ impl<'a> ProofVerifier<'a> {
 
         // If MMR proof is present, verify that too
         if let Some(ref mmr_proof) = proof.mmr_proof {
-            let tip = self.headers.tip().ok_or_else(|| {
-                LightClientError::MissingHeader(self.headers.finalized_height())
-            })?;
+            let tip = self
+                .headers
+                .tip()
+                .ok_or_else(|| LightClientError::MissingHeader(self.headers.finalized_height()))?;
             mmr_proof.verify(header.hash().0, tip.mmr_root)?;
         }
 
@@ -281,13 +283,15 @@ impl<'a> ProofVerifier<'a> {
         from_height: u64,
         to_height: u64,
     ) -> Result<()> {
-        let from_header = self.headers.get(from_height).ok_or_else(|| {
-            LightClientError::MissingHeader(from_height)
-        })?;
+        let from_header = self
+            .headers
+            .get(from_height)
+            .ok_or_else(|| LightClientError::MissingHeader(from_height))?;
 
-        let to_header = self.headers.get(to_height).ok_or_else(|| {
-            LightClientError::MissingHeader(to_height)
-        })?;
+        let to_header = self
+            .headers
+            .get(to_height)
+            .ok_or_else(|| LightClientError::MissingHeader(to_height))?;
 
         proof.verify(from_header.mmr_root, to_header.mmr_root)
     }

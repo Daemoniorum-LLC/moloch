@@ -175,14 +175,12 @@ impl EthereumConfig {
 
     /// Create configuration for Arbitrum.
     pub fn arbitrum(rpc_url: impl Into<String>) -> Self {
-        Self::new(rpc_url, Chain::Arbitrum)
-            .with_confirmations(1) // Arbitrum has instant finality via L1
+        Self::new(rpc_url, Chain::Arbitrum).with_confirmations(1) // Arbitrum has instant finality via L1
     }
 
     /// Create configuration for Base.
     pub fn base(rpc_url: impl Into<String>) -> Self {
-        Self::new(rpc_url, Chain::Base)
-            .with_confirmations(1)
+        Self::new(rpc_url, Chain::Base).with_confirmations(1)
     }
 
     /// Set private key for signing.

@@ -12,11 +12,16 @@ use moloch_bench as _;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use moloch_core::crypto::SecretKey;
-use moloch_core::event::{ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind};
 use moloch_core::block::{BlockBuilder, SealerId};
-use moloch_core::{hash, batch_verify_events, batch_verify_events_parallel, compute_events_root, compute_events_root_parallel};
-use moloch_core::rkyv_types::{archive_event, access_event_unchecked};
+use moloch_core::crypto::SecretKey;
+use moloch_core::event::{
+    ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind,
+};
+use moloch_core::rkyv_types::{access_event_unchecked, archive_event};
+use moloch_core::{
+    batch_verify_events, batch_verify_events_parallel, compute_events_root,
+    compute_events_root_parallel, hash,
+};
 
 fn create_test_event(key: &SecretKey) -> AuditEvent {
     let actor = ActorId::new(key.public_key(), ActorKind::User);
@@ -24,7 +29,10 @@ fn create_test_event(key: &SecretKey) -> AuditEvent {
 
     AuditEvent::builder()
         .now()
-        .event_type(EventType::Push { force: false, commits: 5 })
+        .event_type(EventType::Push {
+            force: false,
+            commits: 5,
+        })
         .actor(actor)
         .resource(resource)
         .outcome(Outcome::Success)
@@ -45,7 +53,10 @@ fn bench_event_creation(c: &mut Criterion) {
         b.iter(|| {
             AuditEvent::builder()
                 .now()
-                .event_type(EventType::Push { force: false, commits: 5 })
+                .event_type(EventType::Push {
+                    force: false,
+                    commits: 5,
+                })
                 .actor(actor.clone())
                 .resource(resource.clone())
                 .outcome(Outcome::Success)
@@ -111,9 +122,7 @@ fn bench_event_id_computation(c: &mut Criterion) {
     let key = SecretKey::generate();
     let event = create_test_event(&key);
 
-    c.bench_function("event/compute_id", |b| {
-        b.iter(|| black_box(&event).id())
-    });
+    c.bench_function("event/compute_id", |b| b.iter(|| black_box(&event).id()));
 }
 
 fn bench_event_validation(c: &mut Criterion) {
@@ -148,9 +157,7 @@ fn bench_signature_operations(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("signature");
 
-    group.bench_function("sign", |b| {
-        b.iter(|| key.sign(black_box(message)))
-    });
+    group.bench_function("sign", |b| b.iter(|| key.sign(black_box(message))));
 
     let signature = key.sign(message);
     let public_key = key.public_key();
@@ -177,7 +184,10 @@ fn bench_batch_verification(c: &mut Criterion) {
 
                 AuditEvent::builder()
                     .now()
-                    .event_type(EventType::Push { force: false, commits: i as u32 })
+                    .event_type(EventType::Push {
+                        force: false,
+                        commits: i as u32,
+                    })
                     .actor(actor)
                     .resource(resource)
                     .outcome(Outcome::Success)
@@ -202,22 +212,14 @@ fn bench_batch_verification(c: &mut Criterion) {
         );
 
         // Batch verification (optimized)
-        group.bench_with_input(
-            BenchmarkId::new("batch", size),
-            &events,
-            |b, events| {
-                b.iter(|| batch_verify_events(black_box(events)).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("batch", size), &events, |b, events| {
+            b.iter(|| batch_verify_events(black_box(events)).unwrap())
+        });
 
         // Parallel batch verification (multi-core)
-        group.bench_with_input(
-            BenchmarkId::new("parallel", size),
-            &events,
-            |b, events| {
-                b.iter(|| batch_verify_events_parallel(black_box(events)).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("parallel", size), &events, |b, events| {
+            b.iter(|| batch_verify_events_parallel(black_box(events)).unwrap())
+        });
     }
 
     group.finish();
@@ -238,7 +240,10 @@ fn bench_merkle_root(c: &mut Criterion) {
 
                 AuditEvent::builder()
                     .now()
-                    .event_type(EventType::Push { force: false, commits: i as u32 })
+                    .event_type(EventType::Push {
+                        force: false,
+                        commits: i as u32,
+                    })
                     .actor(actor)
                     .resource(resource)
                     .outcome(Outcome::Success)
@@ -253,19 +258,13 @@ fn bench_merkle_root(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("sequential", size),
             &events,
-            |b, events| {
-                b.iter(|| compute_events_root(black_box(events)))
-            },
+            |b, events| b.iter(|| compute_events_root(black_box(events))),
         );
 
         // Parallel merkle root
-        group.bench_with_input(
-            BenchmarkId::new("parallel", size),
-            &events,
-            |b, events| {
-                b.iter(|| compute_events_root_parallel(black_box(events)))
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("parallel", size), &events, |b, events| {
+            b.iter(|| compute_events_root_parallel(black_box(events)))
+        });
     }
 
     group.finish();
@@ -289,7 +288,10 @@ fn bench_block_validation(c: &mut Criterion) {
 
                 AuditEvent::builder()
                     .now()
-                    .event_type(EventType::Push { force: false, commits: i as u32 })
+                    .event_type(EventType::Push {
+                        force: false,
+                        commits: i as u32,
+                    })
                     .actor(actor)
                     .resource(resource)
                     .outcome(Outcome::Success)
@@ -299,38 +301,24 @@ fn bench_block_validation(c: &mut Criterion) {
             .collect();
 
         // Create block
-        let block = BlockBuilder::new(sealer)
-            .events(events)
-            .seal(&key);
+        let block = BlockBuilder::new(sealer).events(events).seal(&key);
 
         group.throughput(Throughput::Elements(size as u64));
 
         // Sequential validation
-        group.bench_with_input(
-            BenchmarkId::new("sequential", size),
-            &block,
-            |b, block| {
-                b.iter(|| black_box(block).validate(None).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("sequential", size), &block, |b, block| {
+            b.iter(|| black_box(block).validate(None).unwrap())
+        });
 
         // Batch validation
-        group.bench_with_input(
-            BenchmarkId::new("batch", size),
-            &block,
-            |b, block| {
-                b.iter(|| black_box(block).validate_batch(None).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("batch", size), &block, |b, block| {
+            b.iter(|| black_box(block).validate_batch(None).unwrap())
+        });
 
         // Parallel validation (batch + parallel merkle + parallel canonical bytes)
-        group.bench_with_input(
-            BenchmarkId::new("parallel", size),
-            &block,
-            |b, block| {
-                b.iter(|| black_box(block).validate_parallel(None).unwrap())
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("parallel", size), &block, |b, block| {
+            b.iter(|| black_box(block).validate_parallel(None).unwrap())
+        });
     }
 
     group.finish();

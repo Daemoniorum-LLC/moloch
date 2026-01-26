@@ -74,8 +74,7 @@ impl ErrorCode {
 
     /// Check if this is a client error (4xx equivalent).
     pub fn is_client_error(self) -> bool {
-        let code = self.code();
-        code >= 1000 && code < 5000
+        (1000..5000).contains(&self.code())
     }
 
     /// Check if this is a server error (5xx equivalent).
@@ -377,6 +376,7 @@ impl From<hex::FromHexError> for Error {
 // to work via From<String> for the message field
 
 /// Helper to maintain backward compatibility with Error::Variant(String) pattern.
+#[allow(unused_macros)]
 macro_rules! impl_from_string {
     ($variant:ident, $code:expr) => {
         impl From<&str> for $variant {

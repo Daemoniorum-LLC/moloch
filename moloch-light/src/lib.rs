@@ -56,24 +56,24 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 
+pub mod checkpoint;
 pub mod client;
+pub mod errors;
 pub mod header;
 pub mod proof;
 pub mod sync;
-pub mod checkpoint;
-pub mod errors;
 
-pub use client::{LightClient, LightClientConfig, LightClientState};
-pub use header::{HeaderStore, TrustedHeader, HeaderChain};
-pub use proof::{CompactProof, ProofRequest, ProofResponse, ProofVerifier};
-pub use sync::{SyncConfig, SyncEngine, SyncStatus, SyncProgress};
 pub use checkpoint::{Checkpoint, CheckpointRegistry, TrustedCheckpoint};
+pub use client::{LightClient, LightClientConfig, LightClientState};
 pub use errors::{LightClientError, Result};
+pub use header::{HeaderChain, HeaderStore, TrustedHeader};
+pub use proof::{CompactProof, ProofRequest, ProofResponse, ProofVerifier};
+pub use sync::{SyncConfig, SyncEngine, SyncProgress, SyncStatus};
 
 /// Prelude for convenient imports.
 pub mod prelude {
     pub use crate::client::{LightClient, LightClientConfig};
+    pub use crate::errors::{LightClientError, Result};
     pub use crate::proof::{CompactProof, ProofVerifier};
     pub use crate::sync::{SyncEngine, SyncStatus};
-    pub use crate::errors::{LightClientError, Result};
 }

@@ -20,8 +20,8 @@ use tokio_rustls::{TlsAcceptor, TlsConnector};
 use tracing::{debug, error, info, trace, warn};
 
 use crate::protocol::{
-    generate_message_id, DisconnectReason, GoodbyeMessage, HelloAckMessage, HelloMessage,
-    Message, MessageCodec, PeerId, PingMessage, PongMessage, ProtocolVersion, StatusMessage,
+    generate_message_id, DisconnectReason, GoodbyeMessage, HelloAckMessage, HelloMessage, Message,
+    MessageCodec, PeerId, PingMessage, PongMessage, ProtocolVersion, StatusMessage,
 };
 use moloch_core::crypto::{Hash, PublicKey, SecretKey};
 
@@ -203,11 +203,11 @@ impl Default for TlsConfig {
 impl TlsConfig {
     /// Create a self-signed certificate for testing.
     pub fn generate_self_signed(common_name: &str) -> Result<Self, TransportError> {
-        use rcgen::{CertifiedKey, generate_simple_self_signed};
+        use rcgen::{generate_simple_self_signed, CertifiedKey};
 
         let subject_alt_names = vec![common_name.to_string()];
-        let CertifiedKey { cert, key_pair } =
-            generate_simple_self_signed(subject_alt_names).map_err(|e| {
+        let CertifiedKey { cert, key_pair } = generate_simple_self_signed(subject_alt_names)
+            .map_err(|e| {
                 TransportError::Tls(format!("failed to generate self-signed cert: {}", e))
             })?;
 
@@ -537,7 +537,11 @@ impl Transport {
     }
 
     /// Create a Hello message for handshaking.
-    pub fn create_hello(&self, height: Option<u64>, head_hash: Option<moloch_core::block::BlockHash>) -> HelloMessage {
+    pub fn create_hello(
+        &self,
+        height: Option<u64>,
+        head_hash: Option<moloch_core::block::BlockHash>,
+    ) -> HelloMessage {
         let timestamp = Utc::now();
         let message_bytes = format!(
             "{}:{}:{}",
@@ -675,10 +679,12 @@ impl Transport {
         let length = u32::from_be_bytes(len_buf) as usize;
 
         if length > self.config.max_message_size {
-            return Err(TransportError::Codec(crate::protocol::CodecError::MessageTooLarge {
-                size: length,
-                max: self.config.max_message_size,
-            }));
+            return Err(TransportError::Codec(
+                crate::protocol::CodecError::MessageTooLarge {
+                    size: length,
+                    max: self.config.max_message_size,
+                },
+            ));
         }
 
         // Read payload
@@ -733,7 +739,10 @@ mod tests {
             .unwrap()
             .chain_id("moloch-test")
             .node_key(SecretKey::generate())
-            .tls(TlsConfig { enabled: false, ..Default::default() })
+            .tls(TlsConfig {
+                enabled: false,
+                ..Default::default()
+            })
             .build()
             .unwrap()
     }
@@ -775,7 +784,10 @@ mod tests {
         let addr: SocketAddr = "127.0.0.1:8000".parse().unwrap();
 
         // Add connection
-        let conn_id = pool.add_connection(peer_id.clone(), addr, true).await.unwrap();
+        let conn_id = pool
+            .add_connection(peer_id.clone(), addr, true)
+            .await
+            .unwrap();
         assert!(conn_id > 0);
         assert_eq!(pool.connection_count().await, 1);
         assert!(pool.is_connected(&peer_id).await);
@@ -796,7 +808,9 @@ mod tests {
         let peer_id = PeerId::new(key.public_key());
         let addr: SocketAddr = "127.0.0.1:8000".parse().unwrap();
 
-        pool.add_connection(peer_id.clone(), addr, true).await.unwrap();
+        pool.add_connection(peer_id.clone(), addr, true)
+            .await
+            .unwrap();
 
         // Try to add duplicate
         let result = pool.add_connection(peer_id, addr, true).await;
@@ -834,13 +848,16 @@ mod tests {
         let peer_id = PeerId::new(key.public_key());
         let addr: SocketAddr = "127.0.0.1:8000".parse().unwrap();
 
-        pool.add_connection(peer_id.clone(), addr, true).await.unwrap();
+        pool.add_connection(peer_id.clone(), addr, true)
+            .await
+            .unwrap();
 
         // Record activity
         pool.record_sent(&peer_id).await;
         pool.record_sent(&peer_id).await;
         pool.record_received(&peer_id).await;
-        pool.update_latency(&peer_id, Duration::from_millis(50)).await;
+        pool.update_latency(&peer_id, Duration::from_millis(50))
+            .await;
 
         let conn = pool.get_connection(&peer_id).await.unwrap();
         assert_eq!(conn.messages_sent, 2);
@@ -934,7 +951,10 @@ mod tests {
         });
 
         // Write message
-        transport.write_message(&mut client, &message).await.unwrap();
+        transport
+            .write_message(&mut client, &message)
+            .await
+            .unwrap();
 
         // Read message
         let received = transport.read_message(&mut server).await.unwrap();
@@ -955,7 +975,9 @@ mod tests {
         let peer_id = PeerId::new(key.public_key());
         let addr: SocketAddr = "127.0.0.1:8000".parse().unwrap();
 
-        pool.add_connection(peer_id.clone(), addr, true).await.unwrap();
+        pool.add_connection(peer_id.clone(), addr, true)
+            .await
+            .unwrap();
 
         // Initially not idle
         let idle = pool.get_idle_connections(Duration::from_millis(100)).await;

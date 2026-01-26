@@ -57,12 +57,22 @@ mod proptest;
 // Re-exports for convenience
 pub use aligned::{AlignedHash, AlignedHashArray, CacheLinePadded, CACHE_LINE_SIZE};
 pub use arena::{BatchArena, CanonicalBytesArena, DEFAULT_ARENA_CAPACITY};
-pub use block::{Block, BlockBuilder, BlockHash, BlockHeader, SealerId, compute_events_root, compute_events_root_parallel};
-pub use merkle::{compute_root_optimized, compute_roots_batch, compute_proof, verify_proof};
-pub use crypto::{hash, hash_pair, batch_verify, batch_verify_with_fallback, BatchVerifyResult, Hash, PublicKey, SecretKey, Sig};
+pub use block::{
+    compute_events_root, compute_events_root_parallel, Block, BlockBuilder, BlockHash, BlockHeader,
+    SealerId,
+};
+pub use crypto::{
+    batch_verify, batch_verify_with_fallback, hash, hash_pair, BatchVerifyResult, Hash, PublicKey,
+    SecretKey, Sig,
+};
 pub use error::{Error, Result};
-pub use event::{ActorId, ActorKind, AuditEvent, EventId, EventType, Outcome, ResourceId, ResourceKind};
-pub use proof::{BlockInclusionProof, ConsistencyProof, InclusionProof, MmrProof, Position, ProofNode};
+pub use event::{
+    ActorId, ActorKind, AuditEvent, EventId, EventType, Outcome, ResourceId, ResourceKind,
+};
+pub use merkle::{compute_proof, compute_root_optimized, compute_roots_batch, verify_proof};
+pub use proof::{
+    BlockInclusionProof, ConsistencyProof, InclusionProof, MmrProof, Position, ProofNode,
+};
 
 /// Batch-verify the signatures of multiple events.
 ///

@@ -216,7 +216,11 @@ pub trait AnchorProvider: Send + Sync {
     async fn block_height(&self) -> Result<u64>;
 
     /// Wait for a transaction to reach a confirmation threshold.
-    async fn wait_for_confirmations(&self, tx_id: &TxId, confirmations: u64) -> Result<AnchorProof> {
+    async fn wait_for_confirmations(
+        &self,
+        tx_id: &TxId,
+        confirmations: u64,
+    ) -> Result<AnchorProof> {
         // Default implementation polls
         loop {
             let current = self.confirmations(tx_id).await?;
@@ -241,9 +245,7 @@ mod tests {
 
     #[test]
     fn test_anchor_cost() {
-        let cost = AnchorCost::new(0.0001, "BTC")
-            .with_usd(4.50)
-            .with_time(600);
+        let cost = AnchorCost::new(0.0001, "BTC").with_usd(4.50).with_time(600);
 
         assert_eq!(cost.currency, "BTC");
         assert_eq!(cost.usd_equivalent, Some(4.50));
@@ -252,11 +254,7 @@ mod tests {
 
     #[test]
     fn test_anchor_tx_pending() {
-        let tx = AnchorTx::pending(
-            TxId::new("tx123"),
-            "bitcoin",
-            "mainnet",
-        );
+        let tx = AnchorTx::pending(TxId::new("tx123"), "bitcoin", "mainnet");
 
         assert!(!tx.is_confirmed());
         assert_eq!(tx.confirmations, 0);

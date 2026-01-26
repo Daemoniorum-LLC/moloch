@@ -40,7 +40,11 @@ impl ProtocolVersion {
 
     /// Create a new protocol version.
     pub fn new(major: u16, minor: u16, patch: u16) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 }
 
@@ -600,7 +604,11 @@ impl MessageCodec {
     }
 
     /// Write a framed message to a writer.
-    pub fn write_message<W: Write>(&self, writer: &mut W, message: &Message) -> Result<(), CodecError> {
+    pub fn write_message<W: Write>(
+        &self,
+        writer: &mut W,
+        message: &Message,
+    ) -> Result<(), CodecError> {
         let frame = self.encode(message)?;
         writer.write_all(&frame)?;
         Ok(())

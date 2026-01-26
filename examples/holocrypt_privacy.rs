@@ -9,11 +9,12 @@
 //! Run with: cargo run --example holocrypt_privacy
 
 use moloch_core::crypto::SecretKey;
-use moloch_core::event::{ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind};
+use moloch_core::event::{
+    ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind,
+};
 use moloch_holocrypt::{
-    generate_keypair, EncryptedEventBuilder, EncryptionPolicy, EventProof,
-    ThresholdConfig, ThresholdEvent, KeyShareSet,
-    EventPqcKeyPair, QuantumSafeEvent,
+    generate_keypair, EncryptedEventBuilder, EncryptionPolicy, EventPqcKeyPair, EventProof,
+    KeyShareSet, QuantumSafeEvent, ThresholdConfig, ThresholdEvent,
 };
 
 fn main() -> anyhow::Result<()> {
@@ -55,7 +56,10 @@ fn main() -> anyhow::Result<()> {
 
     // Decrypt with key
     let decrypted = encrypted.decrypt(&opening_key)?;
-    println!("\nDecrypted event - actor restored: {:?}", decrypted.actor());
+    println!(
+        "\nDecrypted event - actor restored: {:?}",
+        decrypted.actor()
+    );
 
     // 2. Zero-Knowledge Proofs
     println!("\n--- Zero-Knowledge Proofs ---\n");
@@ -71,7 +75,10 @@ fn main() -> anyhow::Result<()> {
     println!("  Reveals: Nothing about content");
 
     let valid = existence_proof.verify(&encrypted)?;
-    println!("  Verification: {}", if valid { "PASSED" } else { "FAILED" });
+    println!(
+        "  Verification: {}",
+        if valid { "PASSED" } else { "FAILED" }
+    );
 
     // Prove event type without revealing actor
     let type_proof = EventProof::builder()

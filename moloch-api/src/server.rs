@@ -27,9 +27,7 @@ use moloch_core::crypto::Hash;
 use moloch_core::event::AuditEvent;
 
 use crate::auth::{AuthConfig, AuthMiddleware};
-use crate::rest::{
-    ConsistencyProofResponse, EventsQuery, InclusionProofResponse, StatusResponse,
-};
+use crate::rest::{ConsistencyProofResponse, EventsQuery, InclusionProofResponse, StatusResponse};
 use crate::ws::WsHandler;
 
 /// API server configuration.
@@ -124,7 +122,8 @@ impl ApiState {
     /// Submit an event to the mempool.
     pub async fn submit_event(&self, event: AuditEvent) -> Result<(), String> {
         // Validate event
-        event.validate()
+        event
+            .validate()
             .map_err(|e| format!("invalid event: {}", e))?;
 
         // Add to events (in real impl, add to mempool)
@@ -139,7 +138,8 @@ impl ApiState {
 
     /// Get an event by ID.
     pub async fn get_event(&self, id: &Hash) -> Option<AuditEvent> {
-        self.events.read()
+        self.events
+            .read()
             .iter()
             .find(|e| e.id().as_hash() == id)
             .cloned()
@@ -172,7 +172,8 @@ impl ApiState {
 
     /// Get a block by height.
     pub async fn get_block(&self, height: u64) -> Option<Block> {
-        self.blocks.read()
+        self.blocks
+            .read()
             .iter()
             .find(|b| b.header.height == height)
             .cloned()
@@ -295,9 +296,7 @@ impl ApiServer {
 
         info!("API server listening on {}", self.config.listen_addr);
 
-        axum::serve(listener, router)
-            .await
-            .map_err(|e| e.into())
+        axum::serve(listener, router).await.map_err(|e| e.into())
     }
 }
 
@@ -321,7 +320,10 @@ mod tests {
 
         AuditEvent::builder()
             .now()
-            .event_type(EventType::Push { force: false, commits: 1 })
+            .event_type(EventType::Push {
+                force: false,
+                commits: 1,
+            })
             .actor(actor)
             .resource(resource)
             .sign(key)

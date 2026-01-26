@@ -17,11 +17,11 @@
 //! - Near-linear scaling with number of cores
 //! - Sub-microsecond latency for add/take operations
 
+use chrono::{DateTime, Duration, Utc};
 use crossbeam::queue::SegQueue;
 use dashmap::DashMap;
 use moloch_core::{AuditEvent, EventId, Result};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use chrono::{DateTime, Duration, Utc};
 
 /// Configuration for the concurrent mempool.
 #[derive(Debug, Clone)]

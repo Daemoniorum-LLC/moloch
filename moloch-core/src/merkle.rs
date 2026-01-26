@@ -247,6 +247,7 @@ pub fn verify_proof(leaf: Hash, proof: &[Hash], index: usize, root: Hash) -> boo
 /// Pre-allocate aligned storage for merkle tree levels.
 ///
 /// Useful for repeated merkle tree construction with known maximum size.
+#[allow(dead_code)]
 pub struct MerkleTreeBuffer {
     level_0: Vec<AlignedHashArray<64>>,
     level_1: Vec<AlignedHashArray<32>>,
@@ -258,10 +259,10 @@ pub struct MerkleTreeBuffer {
 impl MerkleTreeBuffer {
     /// Create a buffer for trees up to `max_leaves` elements.
     pub fn new(max_leaves: usize) -> Self {
-        let l0_arrays = (max_leaves + 63) / 64;
-        let l1_arrays = (max_leaves / 2 + 31) / 32;
-        let l2_arrays = (max_leaves / 4 + 15) / 16;
-        let l3_arrays = (max_leaves / 8 + 7) / 8;
+        let l0_arrays = max_leaves.div_ceil(64);
+        let l1_arrays = (max_leaves / 2).div_ceil(32);
+        let l2_arrays = (max_leaves / 4).div_ceil(16);
+        let l3_arrays = (max_leaves / 8).div_ceil(8);
 
         Self {
             level_0: vec![AlignedHashArray::new(); l0_arrays],
@@ -290,7 +291,10 @@ mod tests {
 
         AuditEvent::builder()
             .now()
-            .event_type(EventType::Push { force: false, commits: n })
+            .event_type(EventType::Push {
+                force: false,
+                commits: n,
+            })
             .actor(actor)
             .resource(resource)
             .outcome(Outcome::Success)

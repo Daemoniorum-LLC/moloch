@@ -3,7 +3,9 @@
 //! Run with: cargo run --example basic_event
 
 use moloch_core::crypto::SecretKey;
-use moloch_core::event::{ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind};
+use moloch_core::event::{
+    ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind,
+};
 
 fn main() -> anyhow::Result<()> {
     // Generate a signing key
@@ -22,7 +24,10 @@ fn main() -> anyhow::Result<()> {
     // Build and sign an audit event
     let event = AuditEvent::builder()
         .now()
-        .event_type(EventType::Push { force: false, commits: 5 })
+        .event_type(EventType::Push {
+            force: false,
+            commits: 5,
+        })
         .actor(actor)
         .resource(resource)
         .outcome(Outcome::Success)

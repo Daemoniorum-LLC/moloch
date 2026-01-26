@@ -34,8 +34,8 @@
 //! // Arena is dropped and all memory freed at once
 //! ```
 
-use bumpalo::Bump;
 use bumpalo::collections::Vec as BumpVec;
+use bumpalo::Bump;
 
 use crate::crypto::Hash;
 
@@ -336,9 +336,7 @@ mod tests {
     fn test_arena_slice_allocation() {
         let arena = BatchArena::new();
 
-        let hashes: Vec<Hash> = (0..10u32)
-            .map(|i| hash(&i.to_le_bytes()))
-            .collect();
+        let hashes: Vec<Hash> = (0..10u32).map(|i| hash(&i.to_le_bytes())).collect();
 
         let allocated = arena.alloc_slice(&hashes);
 

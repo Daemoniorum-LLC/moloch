@@ -88,7 +88,8 @@ fn arb_event_type() -> impl Strategy<Value = EventType> {
         Just(EventType::RepoTransferred),
         Just(EventType::RepoVisibilityChanged),
         // Git events
-        (any::<bool>(), 0u32..1000u32).prop_map(|(force, commits)| EventType::Push { force, commits }),
+        (any::<bool>(), 0u32..1000u32)
+            .prop_map(|(force, commits)| EventType::Push { force, commits }),
         Just(EventType::BranchCreated),
         Just(EventType::BranchDeleted),
         Just(EventType::BranchProtectionChanged),
@@ -148,16 +149,19 @@ fn arb_resource_id() -> impl Strategy<Value = ResourceId> {
 
 /// Generate arbitrary ActorId values.
 fn arb_actor_id() -> impl Strategy<Value = (SecretKey, ActorId)> {
-    (arb_secret_key(), arb_actor_kind(), prop::option::of("[a-z]{3,15}")).prop_map(
-        |(key, kind, name)| {
+    (
+        arb_secret_key(),
+        arb_actor_kind(),
+        prop::option::of("[a-z]{3,15}"),
+    )
+        .prop_map(|(key, kind, name)| {
             let actor = ActorId::new(key.public_key(), kind);
             let actor = match name {
                 Some(n) => actor.with_name(n),
                 None => actor,
             };
             (key, actor)
-        },
-    )
+        })
 }
 
 /// Generate an arbitrary signed AuditEvent.

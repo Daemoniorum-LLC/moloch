@@ -234,7 +234,9 @@ impl<S: ChainState> RuntimeMonitor<S> {
 
     /// Get recent history.
     pub fn recent_history(&self, count: usize) -> Vec<CheckRecord> {
-        self.history.read().unwrap()
+        self.history
+            .read()
+            .unwrap()
             .iter()
             .rev()
             .take(count)
@@ -287,10 +289,16 @@ mod tests {
     fn test_precondition() {
         let check = PreCondition::new("height_positive", |s: &MockState| s.height > 0);
 
-        let good_state = MockState { height: 10, events: 100 };
+        let good_state = MockState {
+            height: 10,
+            events: 100,
+        };
         assert!(check.execute(&good_state).is_ok());
 
-        let bad_state = MockState { height: 0, events: 0 };
+        let bad_state = MockState {
+            height: 0,
+            events: 0,
+        };
         assert!(!check.execute(&bad_state).is_ok());
     }
 
@@ -298,10 +306,17 @@ mod tests {
     fn test_runtime_monitor() {
         let mut monitor = RuntimeMonitor::<MockState>::new();
 
-        monitor.add_check(PreCondition::new("height_check", |s: &MockState| s.height > 0));
-        monitor.add_check(PostCondition::new("events_check", |s: &MockState| s.events > 0));
+        monitor.add_check(PreCondition::new("height_check", |s: &MockState| {
+            s.height > 0
+        }));
+        monitor.add_check(PostCondition::new("events_check", |s: &MockState| {
+            s.events > 0
+        }));
 
-        let state = MockState { height: 10, events: 100 };
+        let state = MockState {
+            height: 10,
+            events: 100,
+        };
         let records = monitor.check_state(&state);
 
         assert_eq!(records.len(), 2);
@@ -314,7 +329,10 @@ mod tests {
         let mut monitor = RuntimeMonitor::<MockState>::new();
         monitor.add_check(PreCondition::new("must_fail", |_: &MockState| false));
 
-        let state = MockState { height: 10, events: 100 };
+        let state = MockState {
+            height: 10,
+            events: 100,
+        };
         monitor.check_state(&state);
 
         assert_eq!(monitor.failure_count(), 1);

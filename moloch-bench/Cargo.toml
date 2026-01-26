@@ -14,9 +14,9 @@ moloch-chain = { path = "../moloch-chain" }
 moloch-index = { path = "../moloch-index" }
 moloch-holocrypt = { path = "../moloch-holocrypt" }
 
-# Arcanum for crypto benchmarks
-arcanum-holocrypt = { path = "../../arcanum/crates/arcanum-holocrypt", features = ["full"] }
-arcanum-pqc = { path = "../../arcanum/crates/arcanum-pqc" }
+# Arcanum for crypto benchmarks (crates.io v0.1)
+arcanum-holocrypt = { version = "0.1", features = ["full"] }
+arcanum-pqc = { version = "0.1" }
 
 # Benchmarking
 criterion = { version = "0.5", features = ["html_reports"] }

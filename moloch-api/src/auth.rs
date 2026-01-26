@@ -329,7 +329,8 @@ impl AuthMiddleware {
         let hashed = self.hash_key(secret);
 
         // Get the key
-        let key = self.api_keys
+        let key = self
+            .api_keys
             .get(&hashed)
             .ok_or(AuthError::InvalidApiKey)?
             .clone();
@@ -340,7 +341,10 @@ impl AuthMiddleware {
         }
 
         // Check rate limit
-        let mut rate_limit = self.rate_limits.entry(key.id.clone()).or_insert_with(RateLimitState::new);
+        let mut rate_limit = self
+            .rate_limits
+            .entry(key.id.clone())
+            .or_insert_with(RateLimitState::new);
         if !rate_limit.check(self.config.rate_limit_rpm, self.config.rate_limit_window) {
             warn!("Rate limit exceeded for key: {}", key.id);
             return Err(AuthError::RateLimitExceeded);
@@ -373,7 +377,10 @@ impl AuthMiddleware {
         }
 
         // Check rate limit
-        let mut rate_limit = self.rate_limits.entry(claims.sub.clone()).or_insert_with(RateLimitState::new);
+        let mut rate_limit = self
+            .rate_limits
+            .entry(claims.sub.clone())
+            .or_insert_with(RateLimitState::new);
         if !rate_limit.check(self.config.rate_limit_rpm, self.config.rate_limit_window) {
             warn!("Rate limit exceeded for token: {}", claims.sub);
             return Err(AuthError::RateLimitExceeded);
@@ -395,7 +402,11 @@ impl AuthMiddleware {
             // API key
             let key_secret = &auth[7..];
             let key = self.validate_api_key(key_secret)?;
-            Ok(Claims::new(&key.id, key.permission, self.config.token_expiration))
+            Ok(Claims::new(
+                &key.id,
+                key.permission,
+                self.config.token_expiration,
+            ))
         } else {
             Err(AuthError::MissingAuth)
         }
@@ -403,14 +414,19 @@ impl AuthMiddleware {
 
     /// List all API keys (without secrets).
     pub fn list_keys(&self) -> Vec<ApiKey> {
-        self.api_keys.iter().map(|entry| entry.value().clone()).collect()
+        self.api_keys
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
     }
 
     /// Get rate limit stats for a key.
     pub fn rate_limit_stats(&self, key_id: &str) -> Option<(u32, Duration)> {
         self.rate_limits.get(key_id).map(|state| {
             let remaining = self.config.rate_limit_rpm.saturating_sub(state.count);
-            let window_remaining = self.config.rate_limit_window
+            let window_remaining = self
+                .config
+                .rate_limit_window
                 .checked_sub(state.window_start.elapsed())
                 .unwrap_or(Duration::ZERO);
             (remaining, window_remaining)
@@ -679,7 +695,10 @@ mod tests {
 
         let hash1 = auth.hash_key("secret-key-1");
         let hash2 = auth.hash_key("secret-key-2");
-        assert_ne!(hash1, hash2, "different inputs should produce different hashes");
+        assert_ne!(
+            hash1, hash2,
+            "different inputs should produce different hashes"
+        );
     }
 
     // ===== TDD Tests for JWT Secret Production Guard =====

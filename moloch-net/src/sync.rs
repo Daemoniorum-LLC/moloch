@@ -318,7 +318,8 @@ impl SyncManager {
                 if let (Some(local), Some(target)) = (status.local_height, status.target_height) {
                     if status.blocks_per_second > 0.0 && target > local {
                         let remaining = target - local;
-                        status.eta_seconds = Some((remaining as f64 / status.blocks_per_second) as u64);
+                        status.eta_seconds =
+                            Some((remaining as f64 / status.blocks_per_second) as u64);
                     }
                 }
             }
@@ -454,12 +455,9 @@ impl SyncManager {
 
             // Find a peer that has this range
             let heights = self.peer_heights.read().await;
-            let suitable_peer = available_peers.iter().find(|p| {
-                heights
-                    .get(&p.id)
-                    .map(|h| *h >= range.end)
-                    .unwrap_or(false)
-            });
+            let suitable_peer = available_peers
+                .iter()
+                .find(|p| heights.get(&p.id).map(|h| *h >= range.end).unwrap_or(false));
 
             if let Some(peer) = suitable_peer {
                 let message_id = generate_message_id();
@@ -533,16 +531,17 @@ impl SyncManager {
         }
 
         // Update synced count
-        self.synced_count.fetch_add(
-            received.len() as u64,
-            std::sync::atomic::Ordering::SeqCst,
-        );
+        self.synced_count
+            .fetch_add(received.len() as u64, std::sync::atomic::Ordering::SeqCst);
 
         Ok(received)
     }
 
     /// Handle a received headers response.
-    pub async fn handle_headers(&self, response: HeadersMessage) -> Result<Vec<BlockHeader>, SyncError> {
+    pub async fn handle_headers(
+        &self,
+        response: HeadersMessage,
+    ) -> Result<Vec<BlockHeader>, SyncError> {
         // Remove from pending
         let mut pending = self.pending_requests.write().await;
         let request = pending.remove(&response.request_id);
@@ -767,7 +766,7 @@ mod tests {
     }
 
     fn test_peer_info(height: u64) -> PeerInfo {
-        use crate::discovery::{DiscoverySource, PeerScore, PeerState, PeerMetadata};
+        use crate::discovery::{DiscoverySource, PeerMetadata, PeerScore, PeerState};
 
         PeerInfo {
             id: test_peer_id(),
@@ -987,7 +986,10 @@ mod tests {
                 PendingRequest {
                     id: request_id,
                     peer: test_peer_id(),
-                    kind: RequestKind::Blocks { start: 0, count: 100 },
+                    kind: RequestKind::Blocks {
+                        start: 0,
+                        count: 100,
+                    },
                     sent_at: Instant::now() - Duration::from_secs(60),
                     retries: 0,
                 },

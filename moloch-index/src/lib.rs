@@ -6,11 +6,11 @@
 //! - Proof generation for inclusion and consistency
 
 pub mod indexes;
-pub mod query;
 pub mod proofs;
+pub mod query;
 
-pub use indexes::{IndexEngine, IndexConfig};
-pub use query::{Query, QueryResult};
+pub use indexes::{IndexConfig, IndexEngine};
 pub use proofs::ProofGenerator;
+pub use query::{Query, QueryResult};
 // Re-export proof types from moloch-core
-pub use moloch_core::proof::{InclusionProof, ConsistencyProof};
+pub use moloch_core::proof::{ConsistencyProof, InclusionProof};

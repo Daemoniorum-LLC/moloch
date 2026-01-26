@@ -34,8 +34,8 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use moloch_core::{AuditEvent, Block, BlockHash, BlockHeader, EventId, Hash, Result, Error};
 use crate::traits::{BlockStore, ChainStore, EventStore};
+use moloch_core::{AuditEvent, Block, BlockHash, BlockHeader, Error, EventId, Hash, Result};
 
 /// Size of MMR node records (32 bytes per hash).
 const MMR_RECORD_SIZE: usize = 32;
@@ -165,11 +165,13 @@ impl MmapStorage {
             .map_err(|e| Error::storage(format!("failed to open events file: {}", e)))?;
 
         // Ensure file is sized
-        let events_len = events_file.metadata()
+        let events_len = events_file
+            .metadata()
             .map_err(|e| Error::storage(format!("failed to get events metadata: {}", e)))?
             .len();
         if events_len < config.events_size {
-            events_file.set_len(config.events_size)
+            events_file
+                .set_len(config.events_size)
                 .map_err(|e| Error::storage(format!("failed to resize events file: {}", e)))?;
         }
 
@@ -182,11 +184,13 @@ impl MmapStorage {
             .open(&mmr_path)
             .map_err(|e| Error::storage(format!("failed to open mmr file: {}", e)))?;
 
-        let mmr_len = mmr_file.metadata()
+        let mmr_len = mmr_file
+            .metadata()
             .map_err(|e| Error::storage(format!("failed to get mmr metadata: {}", e)))?
             .len();
         if mmr_len < config.mmr_size {
-            mmr_file.set_len(config.mmr_size)
+            mmr_file
+                .set_len(config.mmr_size)
                 .map_err(|e| Error::storage(format!("failed to resize mmr file: {}", e)))?;
         }
 
@@ -255,18 +259,23 @@ impl MmapStorage {
 
     /// Append data to events file and return offset.
     fn append_event_data(&self, data: &[u8]) -> Result<u64> {
-        let offset = self.events_end.fetch_add(data.len() as u64, Ordering::SeqCst);
+        let offset = self
+            .events_end
+            .fetch_add(data.len() as u64, Ordering::SeqCst);
 
         // Write to mmap
         {
             let mut mmap = self.events_mmap.write();
             let end = offset as usize + data.len();
             if end > mmap.len() {
-                return Err(Error::storage("events file full, expansion not implemented"));
+                return Err(Error::storage(
+                    "events file full, expansion not implemented",
+                ));
             }
             mmap[offset as usize..end].copy_from_slice(data);
             if self.config.sync_on_write {
-                mmap.flush().map_err(|e| Error::storage(format!("flush failed: {}", e)))?;
+                mmap.flush()
+                    .map_err(|e| Error::storage(format!("flush failed: {}", e)))?;
             }
         }
 
@@ -311,7 +320,8 @@ impl MmapStorage {
         }
         mmap[start..end].copy_from_slice(hash);
         if self.config.sync_on_write {
-            mmap.flush().map_err(|e| Error::storage(format!("flush failed: {}", e)))?;
+            mmap.flush()
+                .map_err(|e| Error::storage(format!("flush failed: {}", e)))?;
         }
 
         // Update size if needed
@@ -493,9 +503,13 @@ impl ChainStore for MmapStorage {
 
     fn flush(&self) -> Result<()> {
         // Flush mmaps
-        self.events_mmap.read().flush()
+        self.events_mmap
+            .read()
+            .flush()
             .map_err(|e| Error::storage(format!("flush events failed: {}", e)))?;
-        self.mmr_mmap.read().flush()
+        self.mmr_mmap
+            .read()
+            .flush()
             .map_err(|e| Error::storage(format!("flush mmr failed: {}", e)))?;
 
         // Save metadata
@@ -536,7 +550,10 @@ mod tests {
 
         AuditEvent::builder()
             .now()
-            .event_type(EventType::Push { force: false, commits: 1 })
+            .event_type(EventType::Push {
+                force: false,
+                commits: 1,
+            })
             .actor(actor)
             .resource(resource)
             .sign(key)
@@ -595,7 +612,9 @@ mod tests {
         {
             let storage = MmapStorage::open(dir.path()).unwrap();
             storage.put_event(&event).unwrap();
-            storage.put_mmr_node(0, Hash::from_bytes([1u8; 32])).unwrap();
+            storage
+                .put_mmr_node(0, Hash::from_bytes([1u8; 32]))
+                .unwrap();
             storage.set_mmr_meta(1, 1).unwrap();
             storage.flush().unwrap();
         }
@@ -623,7 +642,10 @@ mod tests {
 
             let event = AuditEvent::builder()
                 .now()
-                .event_type(EventType::Push { force: false, commits: i as u32 })
+                .event_type(EventType::Push {
+                    force: false,
+                    commits: i as u32,
+                })
                 .actor(actor)
                 .resource(resource)
                 .sign(&key)

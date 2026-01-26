@@ -25,7 +25,12 @@ pub struct CrossChainReference {
 
 impl CrossChainReference {
     /// Create a new cross-chain reference.
-    pub fn new(source_chain: String, event_id: EventId, block_height: u64, block_hash: BlockHash) -> Self {
+    pub fn new(
+        source_chain: String,
+        event_id: EventId,
+        block_height: u64,
+        block_hash: BlockHash,
+    ) -> Self {
         Self {
             source_chain,
             event_id,
@@ -89,7 +94,11 @@ impl ProofBundle {
     pub fn encoded_size(&self) -> usize {
         self.event_proof.encoded_size()
             + self.finality_proof.encoded_size()
-            + self.state_proof.as_ref().map(|p| p.encoded_size()).unwrap_or(0)
+            + self
+                .state_proof
+                .as_ref()
+                .map(|p| p.encoded_size())
+                .unwrap_or(0)
     }
 }
 
@@ -109,7 +118,9 @@ pub struct FinalityProof {
 impl FinalityProof {
     /// Verify finality against a known validator set.
     pub fn verify(&self, validators: &[moloch_core::PublicKey], threshold: usize) -> Result<()> {
-        let valid_count = self.signatures.iter()
+        let valid_count = self
+            .signatures
+            .iter()
             .filter(|(pk, _sig)| validators.contains(pk))
             .count();
 

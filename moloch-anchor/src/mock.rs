@@ -14,8 +14,8 @@ use crate::commitment::Commitment;
 use crate::errors::{AnchorError, Result};
 use crate::proof::{AnchorProof, AnchorStatus, SpvProof};
 use crate::provider::{
-    AnchorCost, AnchorProvider, AnchorTx, FinalityType, ProviderCapabilities,
-    ProviderInfo, ProviderStatus, TxId,
+    AnchorCost, AnchorProvider, AnchorTx, FinalityType, ProviderCapabilities, ProviderInfo,
+    ProviderStatus, TxId,
 };
 
 /// Configuration for the mock provider.
@@ -183,7 +183,11 @@ impl MockProvider {
 
     /// Get all transactions.
     pub fn all_transactions(&self) -> Vec<TxId> {
-        self.transactions.read().keys().map(|k| TxId::new(k)).collect()
+        self.transactions
+            .read()
+            .keys()
+            .map(|k| TxId::new(k))
+            .collect()
     }
 
     /// Clear all transactions.
@@ -237,7 +241,8 @@ impl AnchorProvider for MockProvider {
                 batch_anchor: true,
                 spv_proofs: true,
                 smart_contracts: false,
-                confirmation_time_secs: self.config.block_time_secs * self.config.blocks_to_finality,
+                confirmation_time_secs: self.config.block_time_secs
+                    * self.config.blocks_to_finality,
                 finality_type: FinalityType::Probabilistic,
             },
             block_height: self.block_height.load(Ordering::Relaxed),
@@ -278,7 +283,11 @@ impl AnchorProvider for MockProvider {
 
         self.transactions.write().insert(tx_id.0.clone(), mock_tx);
 
-        Ok(AnchorTx::pending(tx_id, &self.config.id, &self.config.chain_id))
+        Ok(AnchorTx::pending(
+            tx_id,
+            &self.config.id,
+            &self.config.chain_id,
+        ))
     }
 
     async fn verify(&self, proof: &AnchorProof) -> Result<bool> {
@@ -346,8 +355,10 @@ impl AnchorProvider for MockProvider {
     async fn estimate_cost(&self, _commitment: &Commitment) -> Result<AnchorCost> {
         self.simulate_latency().await;
 
-        Ok(AnchorCost::new(self.config.fee_per_anchor, &self.config.currency)
-            .with_time(self.config.block_time_secs * self.config.blocks_to_finality))
+        Ok(
+            AnchorCost::new(self.config.fee_per_anchor, &self.config.currency)
+                .with_time(self.config.block_time_secs * self.config.blocks_to_finality),
+        )
     }
 
     async fn block_height(&self) -> Result<u64> {

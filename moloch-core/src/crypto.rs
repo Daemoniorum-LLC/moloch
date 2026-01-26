@@ -8,11 +8,11 @@
 use std::fmt;
 
 use arcanum_hash::prelude::{Blake3, Hasher as ArcanumHasher};
-use arcanum_signatures::prelude::{
-    Ed25519SigningKey, Ed25519Signature, Ed25519VerifyingKey,
-    SigningKey as ArcanumSigningKey, Signature as ArcanumSignature, VerifyingKey as ArcanumVerifyingKey,
-};
 use arcanum_signatures::ed25519::Ed25519BatchVerifier;
+use arcanum_signatures::prelude::{
+    Ed25519Signature, Ed25519SigningKey, Ed25519VerifyingKey, Signature as ArcanumSignature,
+    SigningKey as ArcanumSigningKey, VerifyingKey as ArcanumVerifyingKey,
+};
 use arcanum_signatures::BatchVerifier;
 use serde::{Deserialize, Serialize};
 
@@ -116,14 +116,21 @@ mod public_key_serde {
     use super::*;
     use serde::{Deserializer, Serializer};
 
-    pub fn serialize<S: Serializer>(key: &Ed25519VerifyingKey, s: S) -> std::result::Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(
+        key: &Ed25519VerifyingKey,
+        s: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
         // Serialize as fixed-size array for bincode compatibility
         let bytes = ArcanumVerifyingKey::to_bytes(key);
-        let arr: [u8; 32] = bytes.try_into().map_err(|_| serde::ser::Error::custom("invalid key length"))?;
+        let arr: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| serde::ser::Error::custom("invalid key length"))?;
         arr.serialize(s)
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> std::result::Result<Ed25519VerifyingKey, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> std::result::Result<Ed25519VerifyingKey, D::Error> {
         let bytes: [u8; 32] = Deserialize::deserialize(d)?;
         Ed25519VerifyingKey::from_bytes(&bytes).map_err(serde::de::Error::custom)
     }
@@ -132,14 +139,17 @@ mod public_key_serde {
 impl PublicKey {
     /// Create from raw bytes.
     pub fn from_bytes(bytes: &[u8; 32]) -> Result<Self> {
-        let key = Ed25519VerifyingKey::from_bytes(bytes).map_err(|e| Error::invalid_key(e.to_string()))?;
+        let key = Ed25519VerifyingKey::from_bytes(bytes)
+            .map_err(|e| Error::invalid_key(e.to_string()))?;
         Ok(Self(key))
     }
 
     /// Get the raw bytes.
     pub fn as_bytes(&self) -> [u8; 32] {
         let bytes = ArcanumVerifyingKey::to_bytes(&self.0);
-        bytes.try_into().expect("Ed25519 public key is always 32 bytes")
+        bytes
+            .try_into()
+            .expect("Ed25519 public key is always 32 bytes")
     }
 
     /// Derive a unique identifier from this key.
@@ -183,14 +193,17 @@ impl SecretKey {
 
     /// Create from raw bytes.
     pub fn from_bytes(bytes: &[u8; 32]) -> Result<Self> {
-        let key = Ed25519SigningKey::from_bytes(bytes).map_err(|e| Error::invalid_key(e.to_string()))?;
+        let key =
+            Ed25519SigningKey::from_bytes(bytes).map_err(|e| Error::invalid_key(e.to_string()))?;
         Ok(Self(key))
     }
 
     /// Get the raw bytes.
     pub fn as_bytes(&self) -> [u8; 32] {
         let bytes = ArcanumSigningKey::to_bytes(&self.0);
-        bytes.try_into().expect("Ed25519 secret key is always 32 bytes")
+        bytes
+            .try_into()
+            .expect("Ed25519 secret key is always 32 bytes")
     }
 
     /// Get the corresponding public key.
@@ -226,17 +239,26 @@ mod sig_serde {
     use super::*;
     use serde::{Deserializer, Serializer};
 
-    pub fn serialize<S: Serializer>(sig: &Ed25519Signature, s: S) -> std::result::Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(
+        sig: &Ed25519Signature,
+        s: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
         // Serialize as two 32-byte arrays for bincode compatibility
         // (serde only implements for arrays up to 32 elements)
         let bytes = ArcanumSignature::to_bytes(sig);
         let (first, second) = bytes.split_at(32);
-        let first: [u8; 32] = first.try_into().map_err(|_| serde::ser::Error::custom("invalid signature length"))?;
-        let second: [u8; 32] = second.try_into().map_err(|_| serde::ser::Error::custom("invalid signature length"))?;
+        let first: [u8; 32] = first
+            .try_into()
+            .map_err(|_| serde::ser::Error::custom("invalid signature length"))?;
+        let second: [u8; 32] = second
+            .try_into()
+            .map_err(|_| serde::ser::Error::custom("invalid signature length"))?;
         (first, second).serialize(s)
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> std::result::Result<Ed25519Signature, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> std::result::Result<Ed25519Signature, D::Error> {
         let (first, second): ([u8; 32], [u8; 32]) = Deserialize::deserialize(d)?;
         let mut bytes = [0u8; 64];
         bytes[..32].copy_from_slice(&first);
@@ -253,12 +275,16 @@ impl Sig {
 
     /// Create from raw bytes.
     pub fn from_bytes(bytes: &[u8; 64]) -> Result<Self> {
-        Ok(Self(Ed25519Signature::from_bytes(bytes).map_err(|_| Error::invalid_signature())?))
+        Ok(Self(
+            Ed25519Signature::from_bytes(bytes).map_err(|_| Error::invalid_signature())?,
+        ))
     }
 
     /// Get the raw bytes.
     pub fn to_bytes(&self) -> [u8; 64] {
-        ArcanumSignature::to_bytes(&self.0).try_into().expect("Ed25519 signature is always 64 bytes")
+        ArcanumSignature::to_bytes(&self.0)
+            .try_into()
+            .expect("Ed25519 signature is always 64 bytes")
     }
 
     /// Check if this is an empty signature.
@@ -303,8 +329,7 @@ pub fn batch_verify(items: &[(&PublicKey, &[u8], &Sig)]) -> Result<()> {
         .map(|(pk, msg, sig)| (pk.inner(), *msg, sig.inner()))
         .collect();
 
-    Ed25519BatchVerifier::verify_batch(&arcanum_items)
-        .map_err(|_| Error::invalid_signature())
+    Ed25519BatchVerifier::verify_batch(&arcanum_items).map_err(|_| Error::invalid_signature())
 }
 
 /// Result of batch verification with identification of invalid signatures.

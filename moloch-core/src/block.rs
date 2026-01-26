@@ -384,7 +384,10 @@ pub fn compute_events_root_parallel(events: &[AuditEvent]) -> Hash {
         if hashes.len() >= 64 {
             // Parallel hash pairing for large levels
             let pairs: Vec<_> = hashes.chunks(2).collect();
-            hashes = pairs.par_iter().map(|pair| hash_pair(pair[0], pair[1])).collect();
+            hashes = pairs
+                .par_iter()
+                .map(|pair| hash_pair(pair[0], pair[1]))
+                .collect();
         } else {
             // Sequential for small levels (parallelization overhead not worth it)
             let mut next_level = Vec::with_capacity(hashes.len() / 2);
@@ -499,9 +502,7 @@ mod tests {
         let (key, sealer) = test_sealer();
         let event = test_event(&key);
 
-        let block = BlockBuilder::new(sealer)
-            .events(vec![event])
-            .seal(&key);
+        let block = BlockBuilder::new(sealer).events(vec![event]).seal(&key);
 
         assert_eq!(block.header.height, 0);
         assert_eq!(block.header.parent, BlockHash::ZERO);

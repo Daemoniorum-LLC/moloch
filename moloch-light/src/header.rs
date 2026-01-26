@@ -60,9 +60,7 @@ impl TrustedHeader {
         let valid_sigs = self
             .signatures
             .iter()
-            .filter(|(pk, sig)| {
-                validators.contains(pk) && self.verify_signature(pk, sig)
-            })
+            .filter(|(pk, sig)| validators.contains(pk) && self.verify_signature(pk, sig))
             .count();
 
         if valid_sigs >= threshold {
@@ -298,7 +296,8 @@ mod tests {
         // Sign with secret2 but try to verify with public1
         let wrong_signature = secret2.sign(message.as_bytes());
 
-        let trusted = TrustedHeader::new(header, vec![(public1.clone(), wrong_signature)], Hash::ZERO);
+        let trusted =
+            TrustedHeader::new(header, vec![(public1.clone(), wrong_signature)], Hash::ZERO);
 
         // Should fail verification
         assert!(!trusted.verify_signature(&public1, &trusted.signatures[0].1));

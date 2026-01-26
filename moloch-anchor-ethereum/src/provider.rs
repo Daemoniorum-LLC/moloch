@@ -14,8 +14,8 @@ use async_trait::async_trait;
 use parking_lot::RwLock;
 
 use moloch_anchor::{
-    AnchorCost, AnchorProof, AnchorProvider, AnchorStatus, AnchorTx, Commitment,
-    FinalityType, ProviderCapabilities, ProviderInfo, ProviderStatus, SpvProof, TxId,
+    AnchorCost, AnchorProof, AnchorProvider, AnchorStatus, AnchorTx, Commitment, FinalityType,
+    ProviderCapabilities, ProviderInfo, ProviderStatus, SpvProof, TxId,
 };
 use moloch_core::Hash;
 
@@ -51,10 +51,12 @@ impl EthereumProvider {
         let id = config.provider_id.clone();
 
         // Create HTTP provider
-        let provider = ProviderBuilder::new()
-            .on_http(config.rpc_url.parse().map_err(|e: url::ParseError| {
-                EthereumError::RpcConnection(e.to_string())
-            })?);
+        let provider = ProviderBuilder::new().on_http(
+            config
+                .rpc_url
+                .parse()
+                .map_err(|e: url::ParseError| EthereumError::RpcConnection(e.to_string()))?,
+        );
 
         // Set up wallet if private key provided
         let (wallet, signer_address) = if let Some(ref key) = config.private_key {
@@ -210,7 +212,9 @@ impl EthereumProvider {
             .with_nonce(self.provider.get_transaction_count(from).await?);
 
         // Sign and send
-        let tx_envelope = tx.build(wallet).await
+        let tx_envelope = tx
+            .build(wallet)
+            .await
             .map_err(|e| EthereumError::TxBuild(e.to_string()))?;
 
         let pending = self
@@ -307,9 +311,9 @@ impl AnchorProvider for EthereumProvider {
                     "Contract anchoring not yet implemented".into(),
                 ))
             }
-            AnchorMethod::Blob => {
-                Err(EthereumError::Config("Blob anchoring not yet implemented".into()))
-            }
+            AnchorMethod::Blob => Err(EthereumError::Config(
+                "Blob anchoring not yet implemented".into(),
+            )),
         }
         .map_err(|e| moloch_anchor::AnchorError::SubmissionFailed(e.to_string()))?;
 
@@ -427,17 +431,15 @@ impl AnchorProvider for EthereumProvider {
             .map(|h| format!("0x{}", hex::encode(h.as_slice())))
             .unwrap_or_default();
 
-        Ok(
-            AnchorProof::new(
-                commitment,
-                &self.id,
-                &self.config.chain.moloch_chain_id(),
-                tx_id.clone(),
-                block_number,
-                block_hash,
-            )
-            .with_status(status),
+        Ok(AnchorProof::new(
+            commitment,
+            &self.id,
+            &self.config.chain.moloch_chain_id(),
+            tx_id.clone(),
+            block_number,
+            block_hash,
         )
+        .with_status(status))
     }
 
     async fn estimate_cost(&self, _commitment: &Commitment) -> moloch_anchor::Result<AnchorCost> {
@@ -462,9 +464,8 @@ impl AnchorProvider for EthereumProvider {
         let cost_wei = gas_estimate as u128 * gas_price;
         let cost_eth = cost_wei as f64 / 1e18;
 
-        Ok(AnchorCost::new(cost_eth, "ETH").with_time(
-            self.config.chain.block_time_secs() * self.config.required_confirmations,
-        ))
+        Ok(AnchorCost::new(cost_eth, "ETH")
+            .with_time(self.config.chain.block_time_secs() * self.config.required_confirmations))
     }
 
     async fn block_height(&self) -> moloch_anchor::Result<u64> {

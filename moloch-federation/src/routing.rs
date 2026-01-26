@@ -117,18 +117,15 @@ impl RouteTable {
         let target_routes = routes.get(target)?;
 
         match self.policy {
-            RoutingPolicy::Direct => {
-                target_routes.iter().find(|r| r.is_direct()).cloned()
-            }
+            RoutingPolicy::Direct => target_routes.iter().find(|r| r.is_direct()).cloned(),
             RoutingPolicy::MultiHop => {
                 // Return route with best health
-                target_routes.iter()
-                    .max_by_key(|r| r.health)
-                    .cloned()
+                target_routes.iter().max_by_key(|r| r.health).cloned()
             }
             RoutingPolicy::PreferDirect => {
                 // Prefer direct, fall back to best health
-                target_routes.iter()
+                target_routes
+                    .iter()
                     .find(|r| r.is_direct())
                     .or_else(|| target_routes.iter().max_by_key(|r| r.health))
                     .cloned()
@@ -138,7 +135,9 @@ impl RouteTable {
 
     /// Get all routes to a chain.
     pub fn routes_to(&self, target: &str) -> Vec<Route> {
-        self.routes.read().unwrap()
+        self.routes
+            .read()
+            .unwrap()
             .get(target)
             .cloned()
             .unwrap_or_default()
@@ -154,7 +153,10 @@ impl RouteTable {
     pub fn update_health(&self, target: &str, hop_count: usize, health: u8) {
         let mut routes = self.routes.write().unwrap();
         if let Some(target_routes) = routes.get_mut(target) {
-            if let Some(route) = target_routes.iter_mut().find(|r| r.hop_count() == hop_count) {
+            if let Some(route) = target_routes
+                .iter_mut()
+                .find(|r| r.hop_count() == hop_count)
+            {
                 route.health = health;
             }
         }
@@ -163,7 +165,8 @@ impl RouteTable {
     /// Check if a chain is reachable.
     pub fn is_reachable(&self, target: &str) -> bool {
         let routes = self.routes.read().unwrap();
-        routes.get(target)
+        routes
+            .get(target)
             .map(|r| r.iter().any(|route| route.health > 0))
             .unwrap_or(false)
     }

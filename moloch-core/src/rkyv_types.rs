@@ -20,7 +20,7 @@
 //! println!("Event type: {:?}", archived.event_kind);
 //! ```
 
-use rkyv::{Archive, Deserialize, Serialize, rancor::Error as RkyvError};
+use rkyv::{rancor::Error as RkyvError, Archive, Deserialize, Serialize};
 
 /// Archived 32-byte hash.
 #[derive(Archive, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -168,8 +168,12 @@ impl From<&crate::event::Outcome> for RkyvOutcome {
     fn from(outcome: &crate::event::Outcome) -> Self {
         match outcome {
             crate::event::Outcome::Success => Self::Success,
-            crate::event::Outcome::Failure { reason } => Self::Failure { reason: reason.clone() },
-            crate::event::Outcome::Denied { reason } => Self::Denied { reason: reason.clone() },
+            crate::event::Outcome::Failure { reason } => Self::Failure {
+                reason: reason.clone(),
+            },
+            crate::event::Outcome::Denied { reason } => Self::Denied {
+                reason: reason.clone(),
+            },
             crate::event::Outcome::Pending => Self::Pending,
         }
     }
@@ -312,7 +316,10 @@ impl RkyvEvent {
     /// Create from an AuditEvent.
     pub fn from_event(event: &crate::event::AuditEvent) -> Self {
         let event_data = serde_json::to_vec(&event.event_type).unwrap_or_default();
-        let resource_parent = event.resource.parent.as_ref()
+        let resource_parent = event
+            .resource
+            .parent
+            .as_ref()
             .map(|p| serde_json::to_string(p).unwrap_or_default());
 
         Self {
@@ -364,13 +371,17 @@ impl ArchivedRkyvEvent {
 /// Archive an event to bytes.
 pub fn archive_event(event: &crate::event::AuditEvent) -> Vec<u8> {
     let rkyv_event = RkyvEvent::from_event(event);
-    rkyv::to_bytes::<RkyvError>(&rkyv_event).expect("serialization should not fail").to_vec()
+    rkyv::to_bytes::<RkyvError>(&rkyv_event)
+        .expect("serialization should not fail")
+        .to_vec()
 }
 
 /// Archive multiple events to bytes.
 pub fn archive_events(events: &[crate::event::AuditEvent]) -> Vec<u8> {
     let rkyv_events: Vec<RkyvEvent> = events.iter().map(RkyvEvent::from_event).collect();
-    rkyv::to_bytes::<RkyvError>(&rkyv_events).expect("serialization should not fail").to_vec()
+    rkyv::to_bytes::<RkyvError>(&rkyv_events)
+        .expect("serialization should not fail")
+        .to_vec()
 }
 
 /// Access an archived event (zero-copy, unchecked).
@@ -404,7 +415,10 @@ mod tests {
 
         AuditEvent::builder()
             .now()
-            .event_type(EventType::Push { force: false, commits: 5 })
+            .event_type(EventType::Push {
+                force: false,
+                commits: 5,
+            })
             .actor(actor)
             .resource(resource)
             .sign(&key)
@@ -429,8 +443,12 @@ mod tests {
         let events: Vec<AuditEvent> = (0..10).map(|_| create_test_event()).collect();
         let bytes = archive_events(&events);
 
-        println!("Archived {} events in {} bytes ({} bytes/event)",
-            events.len(), bytes.len(), bytes.len() / events.len());
+        println!(
+            "Archived {} events in {} bytes ({} bytes/event)",
+            events.len(),
+            bytes.len(),
+            bytes.len() / events.len()
+        );
 
         // Verify we can deserialize back (using rkyv's full deserialization)
         // For zero-copy, use access_events_unchecked on trusted data
@@ -447,8 +465,11 @@ mod tests {
         // bincode serialization
         let bincode_bytes = bincode::serialize(&event).unwrap();
 
-        println!("rkyv size: {} bytes, bincode size: {} bytes",
-            rkyv_bytes.len(), bincode_bytes.len());
+        println!(
+            "rkyv size: {} bytes, bincode size: {} bytes",
+            rkyv_bytes.len(),
+            bincode_bytes.len()
+        );
 
         // Both should be similar in size
         // rkyv has some overhead for alignment

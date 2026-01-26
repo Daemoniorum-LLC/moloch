@@ -9,7 +9,7 @@ use moloch_bench as _;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 use moloch_core::hash;
-use moloch_mmr::{Mmr, MemStore};
+use moloch_mmr::{MemStore, Mmr};
 
 fn bench_mmr_append(c: &mut Criterion) {
     let counts = [10, 100, 500, 1000];
@@ -17,9 +17,7 @@ fn bench_mmr_append(c: &mut Criterion) {
     let mut group = c.benchmark_group("mmr/append");
 
     for count in counts {
-        let hashes: Vec<_> = (0..count)
-            .map(|i: u32| hash(&i.to_le_bytes()))
-            .collect();
+        let hashes: Vec<_> = (0..count).map(|i: u32| hash(&i.to_le_bytes())).collect();
 
         group.throughput(Throughput::Elements(count as u64));
 
@@ -42,9 +40,7 @@ fn bench_mmr_append(c: &mut Criterion) {
 
 fn bench_mmr_proof(c: &mut Criterion) {
     let mut mmr = Mmr::new(MemStore::new());
-    let hashes: Vec<_> = (0..1000u32)
-        .map(|i| hash(&i.to_le_bytes()))
-        .collect();
+    let hashes: Vec<_> = (0..1000u32).map(|i| hash(&i.to_le_bytes())).collect();
 
     for h in &hashes {
         mmr.append(*h).unwrap();
@@ -61,9 +57,7 @@ fn bench_mmr_proof(c: &mut Criterion) {
 
 fn bench_mmr_verify(c: &mut Criterion) {
     let mut mmr = Mmr::new(MemStore::new());
-    let hashes: Vec<_> = (0..1000u32)
-        .map(|i| hash(&i.to_le_bytes()))
-        .collect();
+    let hashes: Vec<_> = (0..1000u32).map(|i| hash(&i.to_le_bytes())).collect();
 
     for h in &hashes {
         mmr.append(*h).unwrap();
@@ -72,24 +66,18 @@ fn bench_mmr_verify(c: &mut Criterion) {
     // Generate a proof to verify
     let proof = mmr.proof(500).unwrap();
 
-    c.bench_function("mmr/verify", |b| {
-        b.iter(|| mmr.verify(black_box(&proof)))
-    });
+    c.bench_function("mmr/verify", |b| b.iter(|| mmr.verify(black_box(&proof))));
 }
 
 fn bench_mmr_root(c: &mut Criterion) {
     let mut mmr = Mmr::new(MemStore::new());
-    let hashes: Vec<_> = (0..10000u32)
-        .map(|i| hash(&i.to_le_bytes()))
-        .collect();
+    let hashes: Vec<_> = (0..10000u32).map(|i| hash(&i.to_le_bytes())).collect();
 
     for h in &hashes {
         mmr.append(*h).unwrap();
     }
 
-    c.bench_function("mmr/root", |b| {
-        b.iter(|| mmr.root())
-    });
+    c.bench_function("mmr/root", |b| b.iter(|| mmr.root()));
 }
 
 criterion_group!(
