@@ -24,20 +24,15 @@ use crate::errors::{HoloCryptError, Result};
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Encryption mode for post-quantum security.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum EncryptionMode {
     /// Classical encryption only (X25519 + ChaCha20).
     Classical,
     /// Post-quantum only (ML-KEM-768 + ChaCha20).
     PostQuantum,
     /// Hybrid mode (both classical and PQC for defense in depth).
+    #[default]
     Hybrid,
-}
-
-impl Default for EncryptionMode {
-    fn default() -> Self {
-        Self::Hybrid
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

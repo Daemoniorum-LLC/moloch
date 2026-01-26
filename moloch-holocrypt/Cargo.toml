@@ -3,28 +3,36 @@ name = "moloch-holocrypt"
 description = "HoloCrypt integration for Moloch audit chain - encrypted events, ZK proofs, threshold access"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "audit", "zero-knowledge", "threshold-signatures", "post-quantum"]
+categories = ["cryptography", "authentication"]
 
 [features]
-default = ["full"]
+default = ["full", "parallel"]
 full = ["encryption", "zkp", "threshold", "pqc"]
 encryption = []
 zkp = []
 threshold = []
 pqc = []
+parallel = ["rayon"]
 
 [dependencies]
 # Moloch core
 moloch-core = { path = "../moloch-core" }
 
-# Arcanum cryptographic primitives (crates.io v0.1)
-arcanum-holocrypt = { version = "0.1", features = ["full"] }
-arcanum-core = { version = "0.1" }
-arcanum-hash = { version = "0.1", default-features = false, features = ["std", "backend-native", "blake3"] }
-arcanum-signatures = { version = "0.1", default-features = false, features = ["ed25519"] }
-arcanum-symmetric = { version = "0.1" }
-arcanum-threshold = { version = "0.1" }
-arcanum-pqc = { version = "0.1" }
-arcanum-zkp = { version = "0.1" }
+# Arcanum cryptographic primitives (crates.io v0.1.1)
+arcanum-holocrypt = { version = "0.1.1", features = ["full"] }
+arcanum-core = "0.1.1"
+arcanum-hash = { version = "0.1.1", default-features = false, features = ["std", "blake3"] }
+arcanum-signatures = { version = "0.1.1", default-features = false, features = ["ed25519"] }
+arcanum-symmetric = "0.1.1"
+arcanum-threshold = { version = "0.1.1", features = ["frost-ed25519"] }
+arcanum-pqc = { version = "0.1.1", features = ["ml-dsa"] }
+frost-ed25519 = "2.0"
+arcanum-zkp = "0.1.1"
+arcanum-agile = { version = "0.1.1", features = ["registry", "containers", "policy"] }
 
 # Core utilities
 thiserror.workspace = true
@@ -39,6 +47,14 @@ tokio = { workspace = true, features = ["sync"] }
 # Random
 getrandom = "0.2"
 
+# Parallelism (optional)
+rayon = { version = "1.10", optional = true }
+
 [dev-dependencies]
 proptest.workspace = true
 tempfile.workspace = true
+criterion = "0.5"
+
+[[bench]]
+name = "holocrypt_bench"
+harness = false

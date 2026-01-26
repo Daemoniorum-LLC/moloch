@@ -21,20 +21,15 @@ use crate::errors::{HoloCryptError, Result};
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Visibility level for event fields.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum FieldVisibility {
     /// Field is publicly visible (not encrypted).
     Public,
     /// Field is encrypted but can be selectively disclosed.
+    #[default]
     Encrypted,
     /// Field is encrypted and cannot be disclosed (only verifiable via ZK).
     Private,
-}
-
-impl Default for FieldVisibility {
-    fn default() -> Self {
-        Self::Encrypted
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

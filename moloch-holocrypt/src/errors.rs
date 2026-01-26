@@ -133,6 +133,31 @@ pub enum HoloCryptError {
         /// Reason for failure.
         reason: String,
     },
+
+    /// Composite signature verification failed.
+    #[error("composite signature invalid: {component} component failed")]
+    CompositeSignatureInvalid {
+        /// Which component failed.
+        component: String,
+    },
+
+    /// FROST signing round failed.
+    #[error("FROST round {round} failed: {reason}")]
+    FrostRoundFailed {
+        /// Which round failed.
+        round: u8,
+        /// Reason for failure.
+        reason: String,
+    },
+
+    /// Insufficient FROST participants.
+    #[error("insufficient FROST participants: need {required}, got {provided}")]
+    InsufficientFrostParticipants {
+        /// Required number of participants.
+        required: u16,
+        /// Number of participants provided.
+        provided: u16,
+    },
 }
 
 impl From<arcanum_holocrypt::HoloCryptError> for HoloCryptError {
