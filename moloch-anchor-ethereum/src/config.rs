@@ -3,10 +3,9 @@
 use serde::{Deserialize, Serialize};
 
 /// Ethereum chain/network.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Chain {
     /// Ethereum mainnet (chain ID 1).
-    #[default]
     Mainnet,
     /// Sepolia testnet (chain ID 11155111).
     Sepolia,
@@ -84,6 +83,13 @@ impl Chain {
             137 => Chain::Polygon,
             _ => Chain::Custom(id),
         }
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for Chain {
+    fn default() -> Self {
+        Chain::Mainnet
     }
 }
 

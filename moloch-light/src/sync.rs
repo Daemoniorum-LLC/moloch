@@ -250,6 +250,7 @@ pub struct MockHeaderProvider {
 }
 
 #[cfg(test)]
+#[allow(missing_docs)]
 impl MockHeaderProvider {
     /// Create a new mock provider with the given headers.
     pub fn new(headers: Vec<TrustedHeader>) -> Self {

@@ -108,7 +108,6 @@ impl MmrCompactProof {
         // Walk up the tree using siblings
         let mut current = leaf;
         let mut pos = self.position;
-
         for (height, sibling) in self.siblings.iter().enumerate() {
             let height = height as u32;
             let left_pos = pos - (1 << height);

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Bitcoin network.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Network {
     /// Bitcoin mainnet.
     #[default]
@@ -47,6 +47,7 @@ impl Network {
         }
     }
 }
+
 
 /// Configuration for the Bitcoin provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]

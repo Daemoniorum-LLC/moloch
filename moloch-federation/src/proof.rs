@@ -225,6 +225,6 @@ mod tests {
         };
 
         // Empty signatures = minimal size
-        assert_eq!(finality.encoded_size(), (32 + 8) + 32);
+        assert_eq!(finality.encoded_size(), 32 + 8 + 32);
     }
 }

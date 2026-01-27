@@ -48,9 +48,8 @@ impl Default for AuthConfig {
 }
 
 /// Permission level for API access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[derive(Default)]
 pub enum Permission {
     /// Read-only access.
     #[default]
@@ -60,6 +59,7 @@ pub enum Permission {
     /// Full administrative access.
     Admin,
 }
+
 
 /// An API key with metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -184,7 +184,11 @@ impl MockProvider {
 
     /// Get all transactions.
     pub fn all_transactions(&self) -> Vec<TxId> {
-        self.transactions.read().keys().map(TxId::new).collect()
+        self.transactions
+            .read()
+            .keys()
+            .map(TxId::new)
+            .collect()
     }
 
     /// Clear all transactions.

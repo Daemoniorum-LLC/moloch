@@ -184,8 +184,8 @@ impl<S: ChainState> RuntimeMonitor<S> {
     /// Add a check to the monitor.
     pub fn add_check(&mut self, check: impl RuntimeCheck<S> + Send + Sync + 'static) {
         self.checks.push(Box::new(check));
-        // Sort by priority (higher first) - use Reverse for descending order
-        self.checks.sort_by_key(|c| std::cmp::Reverse(c.priority()));
+        // Sort by priority (higher first)
+        self.checks.sort_by_key(|b| std::cmp::Reverse(b.priority()));
     }
 
     /// Run all checks against a state.

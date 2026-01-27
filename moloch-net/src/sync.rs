@@ -25,9 +25,8 @@ use moloch_core::block::{Block, BlockHash, BlockHeader};
 use moloch_core::crypto::Hash;
 
 /// Synchronization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[derive(Default)]
 pub enum SyncMode {
     /// Full sync from genesis.
     Full,
@@ -41,6 +40,7 @@ pub enum SyncMode {
     /// Warp sync: skip to recent checkpoint.
     Warp,
 }
+
 
 impl std::fmt::Display for SyncMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
