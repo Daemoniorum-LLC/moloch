@@ -23,8 +23,8 @@ pub mod session;
 
 // Re-exports
 pub use attestation::{
-    AgentAttestation, AgentAttestationBuilder, AttestationError, RuntimeAttestation, TeeQuote,
-    TeeType, ToolAttestation,
+    AgentAttestation, AgentAttestationBuilder, AttestationError, RequiredCapability,
+    RuntimeAttestation, TeeQuote, TeeType, ToolAttestation,
 };
 pub use capability::{
     Capability, CapabilityBuilder, CapabilityCheck, CapabilityConstraints, CapabilityId,

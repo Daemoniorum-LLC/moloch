@@ -311,6 +311,100 @@ impl AgentAttestationBuilder {
     }
 }
 
+/// A required capability for a tool.
+///
+/// This is a simplified representation of capability requirements that a tool
+/// needs to function. It matches the base types from `CapabilityKind`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RequiredCapability {
+    /// Read data from resources.
+    Read,
+    /// Write/modify data in resources.
+    Write,
+    /// Delete data from resources.
+    Delete,
+    /// Execute commands or code.
+    Execute,
+    /// Invoke a specific tool.
+    InvokeTool { tool_id: String },
+    /// Spawn child agents.
+    SpawnAgent,
+    /// Delegate capabilities to other agents.
+    DelegateCapability,
+    /// Send messages on a channel.
+    SendMessage { channel: String },
+    /// Receive messages from a channel.
+    ReceiveMessage { channel: String },
+    /// Spend currency (any amount).
+    Spend { currency: String },
+    /// Modify permissions.
+    ModifyPermissions,
+    /// View audit logs.
+    ViewAuditLog,
+    /// File system access.
+    FileSystem,
+    /// Network access.
+    Network,
+}
+
+impl RequiredCapability {
+    /// Create a read capability requirement.
+    pub fn read() -> Self {
+        Self::Read
+    }
+
+    /// Create a write capability requirement.
+    pub fn write() -> Self {
+        Self::Write
+    }
+
+    /// Create an execute capability requirement.
+    pub fn execute() -> Self {
+        Self::Execute
+    }
+
+    /// Create a tool invocation requirement.
+    pub fn invoke_tool(tool_id: impl Into<String>) -> Self {
+        Self::InvokeTool {
+            tool_id: tool_id.into(),
+        }
+    }
+
+    /// Create a file system access requirement.
+    pub fn file_system() -> Self {
+        Self::FileSystem
+    }
+
+    /// Create a network access requirement.
+    pub fn network() -> Self {
+        Self::Network
+    }
+}
+
+impl std::fmt::Display for RequiredCapability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RequiredCapability::Read => write!(f, "read"),
+            RequiredCapability::Write => write!(f, "write"),
+            RequiredCapability::Delete => write!(f, "delete"),
+            RequiredCapability::Execute => write!(f, "execute"),
+            RequiredCapability::InvokeTool { tool_id } => write!(f, "invoke_tool:{}", tool_id),
+            RequiredCapability::SpawnAgent => write!(f, "spawn_agent"),
+            RequiredCapability::DelegateCapability => write!(f, "delegate_capability"),
+            RequiredCapability::SendMessage { channel } => write!(f, "send_message:{}", channel),
+            RequiredCapability::ReceiveMessage { channel } => {
+                write!(f, "receive_message:{}", channel)
+            }
+            RequiredCapability::Spend { currency } => write!(f, "spend:{}", currency),
+            RequiredCapability::ModifyPermissions => write!(f, "modify_permissions"),
+            RequiredCapability::ViewAuditLog => write!(f, "view_audit_log"),
+            RequiredCapability::FileSystem => write!(f, "file_system"),
+            RequiredCapability::Network => write!(f, "network"),
+        }
+    }
+}
+
 /// Attestation of a specific tool.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolAttestation {
@@ -324,7 +418,7 @@ pub struct ToolAttestation {
     pub implementation_hash: Hash,
 
     /// Tool's capability requirements.
-    pub required_capabilities: Vec<String>,
+    pub required_capabilities: Vec<RequiredCapability>,
 }
 
 impl ToolAttestation {
@@ -343,15 +437,20 @@ impl ToolAttestation {
     }
 
     /// Add a required capability.
-    pub fn with_capability(mut self, capability: impl Into<String>) -> Self {
-        self.required_capabilities.push(capability.into());
+    pub fn with_capability(mut self, capability: RequiredCapability) -> Self {
+        self.required_capabilities.push(capability);
         self
     }
 
     /// Add multiple required capabilities.
-    pub fn with_capabilities(mut self, capabilities: Vec<String>) -> Self {
+    pub fn with_capabilities(mut self, capabilities: Vec<RequiredCapability>) -> Self {
         self.required_capabilities = capabilities;
         self
+    }
+
+    /// Check if this tool requires a specific capability.
+    pub fn requires(&self, capability: &RequiredCapability) -> bool {
+        self.required_capabilities.contains(capability)
     }
 }
 
@@ -637,11 +736,13 @@ mod tests {
     #[test]
     fn tool_attestation_with_capabilities() {
         let tool = ToolAttestation::new("bash", "5.1.0", hash(b"bash-impl"))
-            .with_capability("execute")
-            .with_capability("file_access");
+            .with_capability(RequiredCapability::Execute)
+            .with_capability(RequiredCapability::FileSystem);
 
         assert_eq!(tool.required_capabilities.len(), 2);
-        assert!(tool.required_capabilities.contains(&"execute".to_string()));
+        assert!(tool.requires(&RequiredCapability::Execute));
+        assert!(tool.requires(&RequiredCapability::FileSystem));
+        assert!(!tool.requires(&RequiredCapability::Network));
     }
 
     #[test]

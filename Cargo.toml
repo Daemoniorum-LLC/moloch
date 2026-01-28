@@ -64,6 +64,7 @@ memmap2 = "0.9"
 
 # Time
 chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
 
 # Logging
 tracing = "0.1"

@@ -330,15 +330,81 @@ impl TimeWindow {
         }
     }
 
-    /// Check if a given timestamp is within this window.
-    /// Note: This is a simplified implementation that ignores timezone.
-    pub fn is_within(&self, _timestamp: i64) -> bool {
-        // In a real implementation, we would:
-        // 1. Convert timestamp to the specified timezone
-        // 2. Check if the day of week is in our list
-        // 3. Check if the time of day is between start and end
-        // For now, return true as a placeholder
-        true
+    /// Create a custom time window.
+    pub fn new(
+        start: TimeOfDay,
+        end: TimeOfDay,
+        days: Vec<DayOfWeek>,
+        timezone: impl Into<String>,
+    ) -> Self {
+        Self {
+            start,
+            end,
+            days,
+            timezone: timezone.into(),
+        }
+    }
+
+    /// Check if a given timestamp (milliseconds since Unix epoch) is within this window.
+    ///
+    /// This implementation:
+    /// 1. Converts the timestamp to the specified timezone
+    /// 2. Checks if the day of week is in the allowed list
+    /// 3. Checks if the time of day is between start and end
+    ///
+    /// Returns false if the timezone is invalid.
+    pub fn is_within(&self, timestamp_ms: i64) -> bool {
+        use chrono::{Datelike, TimeZone, Timelike};
+        use chrono_tz::Tz;
+
+        // Parse the timezone
+        let tz: Tz = match self.timezone.parse() {
+            Ok(tz) => tz,
+            Err(_) => {
+                // If timezone is invalid, deny access (fail-secure)
+                return false;
+            }
+        };
+
+        // Convert timestamp to DateTime in the specified timezone
+        let timestamp_secs = timestamp_ms / 1000;
+        let datetime = match tz.timestamp_opt(timestamp_secs, 0).single() {
+            Some(dt) => dt,
+            None => return false, // Ambiguous or invalid timestamp
+        };
+
+        // Check day of week
+        let weekday = datetime.weekday();
+        let day_of_week = match weekday {
+            chrono::Weekday::Mon => DayOfWeek::Monday,
+            chrono::Weekday::Tue => DayOfWeek::Tuesday,
+            chrono::Weekday::Wed => DayOfWeek::Wednesday,
+            chrono::Weekday::Thu => DayOfWeek::Thursday,
+            chrono::Weekday::Fri => DayOfWeek::Friday,
+            chrono::Weekday::Sat => DayOfWeek::Saturday,
+            chrono::Weekday::Sun => DayOfWeek::Sunday,
+        };
+
+        if !self.days.contains(&day_of_week) {
+            return false;
+        }
+
+        // Check time of day
+        let current_seconds = (datetime.hour() as u32) * 3600
+            + (datetime.minute() as u32) * 60
+            + datetime.second() as u32;
+
+        let start_seconds = self.start.seconds_since_midnight();
+        let end_seconds = self.end.seconds_since_midnight();
+
+        // Handle both normal windows (9:00-17:00) and overnight windows (22:00-06:00)
+        if start_seconds <= end_seconds {
+            // Normal window: start <= current < end
+            current_seconds >= start_seconds && current_seconds < end_seconds
+        } else {
+            // Overnight window: current >= start OR current < end
+            current_seconds >= start_seconds || current_seconds < end_seconds
+        }
     }
 }
 
@@ -1326,5 +1392,115 @@ mod tests {
         let h1 = set.hash();
         let h2 = set.hash();
         assert_eq!(h1, h2);
+    }
+
+    // === TimeWindow Tests ===
+
+    #[test]
+    fn time_window_within_business_hours() {
+        let window = TimeWindow::weekday_business_hours();
+
+        // Wednesday, 2024-01-10 at 10:00:00 UTC (clearly within 9-17)
+        // 1704880800000 ms = Wed Jan 10 2024 10:00:00 UTC
+        let timestamp = 1704880800000i64;
+        assert!(window.is_within(timestamp));
+    }
+
+    #[test]
+    fn time_window_outside_business_hours() {
+        let window = TimeWindow::weekday_business_hours();
+
+        // Wednesday, 2024-01-10 at 18:00:00 UTC (outside 9-17)
+        // 1704909600000 ms = Wed Jan 10 2024 18:00:00 UTC
+        let timestamp = 1704909600000i64;
+        assert!(!window.is_within(timestamp));
+    }
+
+    #[test]
+    fn time_window_weekend_denied() {
+        let window = TimeWindow::weekday_business_hours();
+
+        // Saturday, 2024-01-13 at 12:00:00 UTC (weekend, even during hours)
+        // 1705147200000 ms = Sat Jan 13 2024 12:00:00 UTC
+        let timestamp = 1705147200000i64;
+        assert!(!window.is_within(timestamp));
+    }
+
+    #[test]
+    fn time_window_custom_timezone() {
+        // Create a window for 9am-5pm in America/New_York
+        let window = TimeWindow::new(
+            TimeOfDay::new(9, 0, 0),
+            TimeOfDay::new(17, 0, 0),
+            vec![DayOfWeek::Monday, DayOfWeek::Tuesday, DayOfWeek::Wednesday],
+            "America/New_York",
+        );
+
+        // Monday, 2024-01-08 at 14:00:00 UTC = 9:00 AM EST (within window)
+        let timestamp_within = 1704722400000i64;
+        assert!(window.is_within(timestamp_within));
+
+        // Monday, 2024-01-08 at 12:00:00 UTC = 7:00 AM EST (before window)
+        let timestamp_before = 1704715200000i64;
+        assert!(!window.is_within(timestamp_before));
+    }
+
+    #[test]
+    fn time_window_invalid_timezone_denied() {
+        let window = TimeWindow::new(
+            TimeOfDay::new(9, 0, 0),
+            TimeOfDay::new(17, 0, 0),
+            vec![DayOfWeek::Monday],
+            "Invalid/Timezone",
+        );
+
+        // Should deny access for invalid timezone (fail-secure)
+        let timestamp = 1704722400000i64;
+        assert!(!window.is_within(timestamp));
+    }
+
+    #[test]
+    fn time_window_overnight() {
+        // Create an overnight window (22:00 to 06:00)
+        let window = TimeWindow::new(
+            TimeOfDay::new(22, 0, 0),
+            TimeOfDay::new(6, 0, 0),
+            vec![
+                DayOfWeek::Monday,
+                DayOfWeek::Tuesday,
+                DayOfWeek::Wednesday,
+                DayOfWeek::Thursday,
+                DayOfWeek::Friday,
+                DayOfWeek::Saturday,
+                DayOfWeek::Sunday,
+            ],
+            "UTC",
+        );
+
+        // Wednesday at 23:00 UTC (within overnight window)
+        // 1704931200000 ms = Wed Jan 10 2024 23:00:00 UTC
+        let timestamp_late = 1704927600000i64;
+        assert!(window.is_within(timestamp_late));
+
+        // Thursday at 03:00 UTC (within overnight window)
+        // 1704942000000 ms = Thu Jan 11 2024 03:00:00 UTC
+        let timestamp_early = 1704942000000i64;
+        assert!(window.is_within(timestamp_early));
+
+        // Wednesday at 12:00 UTC (outside overnight window)
+        let timestamp_midday = 1704888000000i64;
+        assert!(!window.is_within(timestamp_midday));
+    }
+
+    #[test]
+    fn time_of_day_seconds_calculation() {
+        let morning = TimeOfDay::new(9, 30, 45);
+        assert_eq!(morning.seconds_since_midnight(), 9 * 3600 + 30 * 60 + 45);
+
+        let midnight = TimeOfDay::new(0, 0, 0);
+        assert_eq!(midnight.seconds_since_midnight(), 0);
+
+        let end_of_day = TimeOfDay::new(23, 59, 59);
+        assert_eq!(end_of_day.seconds_since_midnight(), 23 * 3600 + 59 * 60 + 59);
     }
 }

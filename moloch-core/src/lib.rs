@@ -80,9 +80,9 @@ pub use agent::{
     AgentAttestation, AgentAttestationBuilder, AttestationError, AttestationRegistry, Capability,
     CapabilityBuilder, CapabilityCheck, CapabilityConstraints, CapabilityId, CapabilityKind,
     CapabilitySet, CapabilitySetId, CausalContext, CausalContextBuilder, CrossSessionReference,
-    DayOfWeek, DenialReason, PrincipalId, PrincipalKind, RateLimit, ResourceScope,
-    RuntimeAttestation, Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary,
-    TeeQuote, TeeType, TimeOfDay, TimeWindow, ToolAttestation,
+    DayOfWeek, DenialReason, PrincipalId, PrincipalKind, RateLimit, RequiredCapability,
+    ResourceScope, RuntimeAttestation, Session, SessionBuilder, SessionEndReason, SessionId,
+    SessionSummary, TeeQuote, TeeType, TimeOfDay, TimeWindow, ToolAttestation,
 };
 
 /// Batch-verify the signatures of multiple events.
