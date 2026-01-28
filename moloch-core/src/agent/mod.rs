@@ -17,6 +17,7 @@
 pub mod attestation;
 pub mod capability;
 pub mod causality;
+pub mod hitl;
 pub mod principal;
 pub mod registry;
 pub mod session;
@@ -32,6 +33,11 @@ pub use capability::{
     ResourceScope, TimeOfDay, TimeWindow,
 };
 pub use causality::{CausalContext, CausalContextBuilder, CrossSessionReference};
+pub use hitl::{
+    ActionModifications, ApprovalContext, ApprovalDecision, ApprovalPolicy, ApprovalRequest,
+    ApprovalRequestId, ApprovalResponse, ApprovalStatus, CancellationActor, Cost,
+    EscalationPolicy, ImpactAssessment, ProposedAction, ProposedActionBuilder, Severity,
+};
 pub use principal::{PrincipalId, PrincipalKind};
 pub use registry::AttestationRegistry;
 pub use session::{Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary};
