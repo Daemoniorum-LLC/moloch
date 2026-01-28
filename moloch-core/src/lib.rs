@@ -83,13 +83,15 @@ pub use agent::{
     CancellationActor, Capability, CapabilityBuilder, CapabilityCheck, CapabilityConstraints,
     CapabilityId, CapabilityKind, CapabilitySet, CapabilitySetId, CausalContext,
     CausalContextBuilder, Confidence, Cost, CrossSessionReference, DayOfWeek, Decision,
-    DenialReason, DisputeStatus, EscalationPolicy, Evidence, Factor, Goal, GoalSource,
-    IdempotencyKey, IdempotencyRecord, ImpactAssessment, OutcomeAttestation,
-    OutcomeAttestationBuilder, OutcomeDispute, PrincipalId, PrincipalKind, Priority,
-    ProposedAction, ProposedActionBuilder, RateLimit, ReasoningStep, ReasoningTrace,
-    ReasoningTraceBuilder, RequiredCapability, ResourceScope, RuntimeAttestation, Session,
-    SessionBuilder, SessionEndReason, SessionId, SessionSummary, Severity, StepAction, TeeQuote,
-    TeeType, TimeOfDay, TimeWindow, ToolAttestation, TraceId,
+    DenialReason, DisputeStatus, DurationMs, EmergencyAction, EmergencyEvent,
+    EmergencyEventBuilder, EmergencyPriority, EmergencyResolution, EmergencyTrigger,
+    EscalationPolicy, Evidence, Factor, Goal, GoalSource, IdempotencyKey, IdempotencyRecord,
+    ImpactAssessment, OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute, PostMortem,
+    PrincipalId, PrincipalKind, Priority, ProposedAction, ProposedActionBuilder, RateLimit,
+    ReasoningStep, ReasoningTrace, ReasoningTraceBuilder, RequiredCapability, Resolution,
+    ResourceScope, RuntimeAttestation, Session, SessionBuilder, SessionEndReason, SessionId,
+    SessionSummary, Severity, StepAction, SuspensionScope, TeeQuote, TeeType, TimeOfDay,
+    TimeWindow, ToolAttestation, TraceId,
 };
 
 /// Batch-verify the signatures of multiple events.

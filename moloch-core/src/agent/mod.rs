@@ -17,6 +17,7 @@
 pub mod attestation;
 pub mod capability;
 pub mod causality;
+pub mod emergency;
 pub mod hitl;
 pub mod outcome;
 pub mod principal;
@@ -35,6 +36,10 @@ pub use capability::{
     ResourceScope, TimeOfDay, TimeWindow,
 };
 pub use causality::{CausalContext, CausalContextBuilder, CrossSessionReference};
+pub use emergency::{
+    DurationMs, EmergencyAction, EmergencyEvent, EmergencyEventBuilder, EmergencyPriority,
+    EmergencyResolution, EmergencyTrigger, PostMortem, Resolution, SuspensionScope,
+};
 pub use hitl::{
     ActionModifications, ApprovalContext, ApprovalDecision, ApprovalPolicy, ApprovalRequest,
     ApprovalRequestId, ApprovalResponse, ApprovalStatus, CancellationActor, Cost,
