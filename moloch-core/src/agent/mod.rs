@@ -18,6 +18,7 @@ pub mod attestation;
 pub mod capability;
 pub mod causality;
 pub mod hitl;
+pub mod outcome;
 pub mod principal;
 pub mod reasoning;
 pub mod registry;
@@ -43,6 +44,10 @@ pub use principal::{PrincipalId, PrincipalKind};
 pub use reasoning::{
     Alternative, Confidence, Decision, Factor, Goal, GoalSource, Priority, ReasoningStep,
     ReasoningTrace, ReasoningTraceBuilder, StepAction, TraceId,
+};
+pub use outcome::{
+    ActionOutcome, Attestor, DisputeStatus, Evidence, IdempotencyKey, IdempotencyRecord,
+    OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute,
 };
 pub use registry::AttestationRegistry;
 pub use session::{Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary};
