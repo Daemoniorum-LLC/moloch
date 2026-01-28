@@ -17,6 +17,7 @@
 pub mod attestation;
 pub mod capability;
 pub mod causality;
+pub mod coordination;
 pub mod emergency;
 pub mod hitl;
 pub mod outcome;
@@ -36,6 +37,12 @@ pub use capability::{
     ResourceScope, TimeOfDay, TimeWindow,
 };
 pub use causality::{CausalContext, CausalContextBuilder, CrossSessionReference};
+pub use coordination::{
+    CoordinatedAction, CoordinatedActionBuilder, CoordinatedActionSpec, CoordinationEvent,
+    CoordinationId, CoordinationMetrics, CoordinationProtocol, CoordinationResult,
+    CoordinationStatus, CoordinationType, FailureHandling, Participant, ParticipantRole,
+    Responsibility, Task, TaskDependency, TaskId,
+};
 pub use emergency::{
     DurationMs, EmergencyAction, EmergencyEvent, EmergencyEventBuilder, EmergencyPriority,
     EmergencyResolution, EmergencyTrigger, PostMortem, Resolution, SuspensionScope,
