@@ -41,6 +41,7 @@
 //! assert!(block.validate(None).is_ok());
 //! ```
 
+pub mod agent;
 pub mod aligned;
 pub mod arena;
 pub mod block;
@@ -72,6 +73,12 @@ pub use event::{
 pub use merkle::{compute_proof, compute_root_optimized, compute_roots_batch, verify_proof};
 pub use proof::{
     BlockInclusionProof, ConsistencyProof, InclusionProof, MmrProof, Position, ProofNode,
+};
+
+// Agent accountability types
+pub use agent::{
+    CausalContext, CausalContextBuilder, CrossSessionReference, PrincipalId, PrincipalKind,
+    Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary,
 };
 
 /// Batch-verify the signatures of multiple events.
