@@ -77,8 +77,10 @@ pub use proof::{
 
 // Agent accountability types
 pub use agent::{
+    AgentAttestation, AgentAttestationBuilder, AttestationError, AttestationRegistry,
     CausalContext, CausalContextBuilder, CrossSessionReference, PrincipalId, PrincipalKind,
-    Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary,
+    RuntimeAttestation, Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary,
+    TeeQuote, TeeType, ToolAttestation,
 };
 
 /// Batch-verify the signatures of multiple events.

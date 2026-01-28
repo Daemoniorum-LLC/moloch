@@ -14,11 +14,18 @@
 //! - [`emergency`] - Emergency control actions
 //! - [`coordination`] - Multi-agent coordination
 
+pub mod attestation;
 pub mod causality;
 pub mod principal;
+pub mod registry;
 pub mod session;
 
 // Re-exports
+pub use attestation::{
+    AgentAttestation, AgentAttestationBuilder, AttestationError, RuntimeAttestation, TeeQuote,
+    TeeType, ToolAttestation,
+};
 pub use causality::{CausalContext, CausalContextBuilder, CrossSessionReference};
 pub use principal::{PrincipalId, PrincipalKind};
+pub use registry::AttestationRegistry;
 pub use session::{Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary};
