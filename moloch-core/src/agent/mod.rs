@@ -15,6 +15,7 @@
 //! - [`coordination`] - Multi-agent coordination
 
 pub mod attestation;
+pub mod capability;
 pub mod causality;
 pub mod principal;
 pub mod registry;
@@ -24,6 +25,11 @@ pub mod session;
 pub use attestation::{
     AgentAttestation, AgentAttestationBuilder, AttestationError, RuntimeAttestation, TeeQuote,
     TeeType, ToolAttestation,
+};
+pub use capability::{
+    Capability, CapabilityBuilder, CapabilityCheck, CapabilityConstraints, CapabilityId,
+    CapabilityKind, CapabilitySet, CapabilitySetId, DayOfWeek, DenialReason, RateLimit,
+    ResourceScope, TimeOfDay, TimeWindow,
 };
 pub use causality::{CausalContext, CausalContextBuilder, CrossSessionReference};
 pub use principal::{PrincipalId, PrincipalKind};

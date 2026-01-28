@@ -77,10 +77,12 @@ pub use proof::{
 
 // Agent accountability types
 pub use agent::{
-    AgentAttestation, AgentAttestationBuilder, AttestationError, AttestationRegistry,
-    CausalContext, CausalContextBuilder, CrossSessionReference, PrincipalId, PrincipalKind,
+    AgentAttestation, AgentAttestationBuilder, AttestationError, AttestationRegistry, Capability,
+    CapabilityBuilder, CapabilityCheck, CapabilityConstraints, CapabilityId, CapabilityKind,
+    CapabilitySet, CapabilitySetId, CausalContext, CausalContextBuilder, CrossSessionReference,
+    DayOfWeek, DenialReason, PrincipalId, PrincipalKind, RateLimit, ResourceScope,
     RuntimeAttestation, Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary,
-    TeeQuote, TeeType, ToolAttestation,
+    TeeQuote, TeeType, TimeOfDay, TimeWindow, ToolAttestation,
 };
 
 /// Batch-verify the signatures of multiple events.
