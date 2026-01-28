@@ -8,7 +8,6 @@ use std::collections::HashMap;
 
 use crate::crypto::{hash, Hash, PublicKey, Sig};
 use crate::error::{Error, Result};
-use crate::event::EventId;
 
 use super::capability::{CapabilityId, CapabilityKind};
 use super::causality::CausalContext;
@@ -1179,6 +1178,7 @@ mod tests {
     use crate::crypto::SecretKey;
     use crate::agent::principal::PrincipalId;
     use crate::agent::session::SessionId;
+    use crate::event::EventId;
 
     fn test_key() -> SecretKey {
         SecretKey::generate()
