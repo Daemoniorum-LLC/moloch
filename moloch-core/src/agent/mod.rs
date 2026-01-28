@@ -19,6 +19,7 @@ pub mod capability;
 pub mod causality;
 pub mod hitl;
 pub mod principal;
+pub mod reasoning;
 pub mod registry;
 pub mod session;
 
@@ -39,5 +40,9 @@ pub use hitl::{
     EscalationPolicy, ImpactAssessment, ProposedAction, ProposedActionBuilder, Severity,
 };
 pub use principal::{PrincipalId, PrincipalKind};
+pub use reasoning::{
+    Alternative, Confidence, Decision, Factor, Goal, GoalSource, Priority, ReasoningStep,
+    ReasoningTrace, ReasoningTraceBuilder, StepAction, TraceId,
+};
 pub use registry::AttestationRegistry;
 pub use session::{Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary};

@@ -13,6 +13,7 @@ use crate::event::{EventId, ResourceId};
 use super::capability::{CapabilityId, ResourceScope};
 use super::causality::CausalContext;
 use super::principal::PrincipalId;
+use super::reasoning::ReasoningTrace;
 
 /// Unique approval request identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -624,6 +625,8 @@ pub struct ApprovalContext {
     pub capability_id: CapabilityId,
     /// Similar past actions for reference.
     pub similar_actions: Vec<EventId>,
+    /// Agent's full reasoning trace.
+    pub reasoning_trace: Option<ReasoningTrace>,
 }
 
 impl ApprovalContext {
@@ -638,12 +641,19 @@ impl ApprovalContext {
             agent_attestation_hash,
             capability_id,
             similar_actions: Vec::new(),
+            reasoning_trace: None,
         }
     }
 
     /// Add similar past actions.
     pub fn with_similar_actions(mut self, actions: Vec<EventId>) -> Self {
         self.similar_actions = actions;
+        self
+    }
+
+    /// Add reasoning trace.
+    pub fn with_reasoning_trace(mut self, trace: ReasoningTrace) -> Self {
+        self.reasoning_trace = Some(trace);
         self
     }
 }
