@@ -132,13 +132,28 @@ impl OutcomeAttestation {
                 external_count >= 2
             }
             Severity::Critical => {
-                // Cryptographic proof or human verification required
-                self.evidence.iter().any(|e| {
-                    matches!(
-                        e,
-                        Evidence::ThirdPartyAttestation { .. } | Evidence::Receipt { .. }
-                    )
-                }) || matches!(self.attestor, Attestor::HumanObserver { .. })
+                // Per Section 8.3.3: Critical severity requires independent
+                // third-party verification, not self-referential evidence.
+
+                // Cryptographic third-party attestation always suffices
+                let has_third_party = self
+                    .evidence
+                    .iter()
+                    .any(|e| matches!(e, Evidence::ThirdPartyAttestation { .. }));
+
+                // Human observer always suffices
+                let has_human = matches!(self.attestor, Attestor::HumanObserver { .. });
+
+                // Receipt alone is insufficient (could be self-referential),
+                // but receipt + additional external evidence = corroborated
+                let has_receipt = self
+                    .evidence
+                    .iter()
+                    .any(|e| matches!(e, Evidence::Receipt { .. }));
+                let external_count = self.evidence.iter().filter(|e| e.is_external()).count();
+                let has_corroborated_receipt = has_receipt && external_count >= 2;
+
+                has_third_party || has_human || has_corroborated_receipt
             }
         }
     }
@@ -1330,5 +1345,147 @@ mod tests {
             resolution_event_id: test_event_id(),
         };
         assert!(upheld.is_resolved());
+    }
+
+    // === Evidence Classification Tests (Finding 4.1) ===
+
+    #[test]
+    fn evidence_receipt_alone_insufficient_for_critical() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::receipt("self-system", vec![1, 2, 3]))
+            .sign(&key)
+            .unwrap();
+
+        assert!(!attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_third_party_attestation_satisfies_critical() {
+        let key = test_key();
+        let third_party_key = SecretKey::generate();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::third_party_attestation(
+                third_party_key.public_key(),
+                vec![1, 2, 3],
+            ))
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_human_observer_satisfies_critical() {
+        let key = test_key();
+        let principal = PrincipalId::user("admin@example.com").unwrap();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::human_observer(principal))
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_receipt_plus_external_confirmation_satisfies_critical() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::receipt("notary-service", vec![1, 2, 3]))
+            .evidence(Evidence::external_confirmation(
+                "monitoring",
+                "check-456",
+                chrono::Utc::now().timestamp_millis(),
+            ))
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_external_confirmation_alone_insufficient_for_critical() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::external_confirmation(
+                "monitoring",
+                "check-789",
+                chrono::Utc::now().timestamp_millis(),
+            ))
+            .sign(&key)
+            .unwrap();
+
+        // Single external confirmation without third-party attestation
+        // or receipt corroboration is insufficient for Critical
+        assert!(!attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_no_evidence_insufficient_for_critical() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .sign(&key)
+            .unwrap();
+
+        assert!(!attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_low_severity_always_sufficient() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .sign(&key)
+            .unwrap();
+
+        // Self-attestation with no evidence is sufficient for Low
+        assert!(attestation.is_evidence_sufficient(Severity::Low));
+    }
+
+    #[test]
+    fn evidence_medium_requires_external() {
+        let key = test_key();
+
+        // No evidence -> insufficient for Medium
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .sign(&key)
+            .unwrap();
+        assert!(!attestation.is_evidence_sufficient(Severity::Medium));
+
+        // With external evidence -> sufficient for Medium
+        let attestation2 = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::external_confirmation(
+                "ci",
+                "run-123",
+                chrono::Utc::now().timestamp_millis(),
+            ))
+            .sign(&key)
+            .unwrap();
+        assert!(attestation2.is_evidence_sufficient(Severity::Medium));
     }
 }
