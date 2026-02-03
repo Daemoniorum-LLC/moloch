@@ -14,6 +14,7 @@ use std::time::Duration;
 use crate::crypto::{hash, Hash};
 use crate::error::{Error, Result};
 
+use super::capability::CapabilitySet;
 use super::principal::PrincipalId;
 
 /// Unique session identifier.
@@ -92,6 +93,13 @@ pub struct Session {
     /// Maximum causal depth permitted.
     max_depth: u32,
 
+    /// Session-level capability constraints (Section 3.2.2).
+    ///
+    /// Defines what the agent is allowed to do within this session.
+    /// None means capabilities are managed externally.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    capabilities: Option<CapabilitySet>,
+
     /// Human-readable session purpose.
     purpose: String,
 
@@ -142,6 +150,11 @@ impl Session {
     /// Get the maximum allowed causal depth.
     pub fn max_depth(&self) -> u32 {
         self.max_depth
+    }
+
+    /// Get the session-level capabilities (Section 3.2.2).
+    pub fn capabilities(&self) -> Option<&CapabilitySet> {
+        self.capabilities.as_ref()
     }
 
     /// Get the session purpose.
@@ -222,6 +235,7 @@ pub struct SessionBuilder {
     started_at: Option<i64>,
     max_duration: Option<Duration>,
     max_depth: Option<u32>,
+    capabilities: Option<CapabilitySet>,
     purpose: Option<String>,
 }
 
@@ -261,6 +275,12 @@ impl SessionBuilder {
         self
     }
 
+    /// Set session-level capabilities (Section 3.2.2).
+    pub fn capabilities(mut self, capabilities: CapabilitySet) -> Self {
+        self.capabilities = Some(capabilities);
+        self
+    }
+
     /// Set the session purpose.
     pub fn purpose(mut self, purpose: impl Into<String>) -> Self {
         self.purpose = Some(purpose.into());
@@ -287,6 +307,7 @@ impl SessionBuilder {
             ended_at: None,
             max_duration: self.max_duration.unwrap_or(Session::DEFAULT_MAX_DURATION),
             max_depth: self.max_depth.unwrap_or(Session::DEFAULT_MAX_DEPTH),
+            capabilities: self.capabilities,
             purpose: self.purpose.unwrap_or_default(),
             event_count: 0,
             action_count: 0,

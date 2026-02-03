@@ -225,6 +225,8 @@ pub enum RkyvEventKind {
     ReleasePublished,
     BackupCreated,
     SecurityScan,
+    // Agent Accountability v2
+    AgentAccountability,
     // Generic
     Custom,
 }
@@ -268,6 +270,7 @@ impl From<&crate::event::EventType> for RkyvEventKind {
             EventType::ReleasePublished { .. } => Self::ReleasePublished,
             EventType::BackupCreated => Self::BackupCreated,
             EventType::SecurityScan { .. } => Self::SecurityScan,
+            EventType::AgentAccountability { .. } => Self::AgentAccountability,
             EventType::Custom { .. } => Self::Custom,
         }
     }

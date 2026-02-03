@@ -224,6 +224,18 @@ pub enum EventType {
     /// Security scan completed.
     SecurityScan { findings: u32 },
 
+    // === Agent Accountability Events (v2) ===
+    /// Agent accountability event with full structured data (Section 11).
+    ///
+    /// Replaces `AgentAction` for new agent deployments.
+    /// Contains the serialized `AgentEventType` for structured processing.
+    AgentAccountability {
+        /// The specific agent event type label.
+        event_label: String,
+        /// Serialized `AgentEventType` (JSON bytes stored externally in metadata).
+        summary: String,
+    },
+
     // === Generic ===
     /// Custom event type.
     Custom { name: String },

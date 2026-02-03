@@ -790,6 +790,200 @@ impl EmergencyTrigger {
     }
 }
 
+/// Entry in the suspension registry.
+#[derive(Debug, Clone)]
+pub struct SuspensionEntry {
+    /// The agent that is suspended.
+    pub agent: PublicKey,
+    /// Scope of the suspension.
+    pub scope: SuspensionScope,
+    /// When the suspension was declared (Unix ms).
+    pub suspended_at: i64,
+    /// When the suspension expires (None = indefinite).
+    pub expires_at: Option<i64>,
+    /// Reason for the suspension.
+    pub reason: String,
+}
+
+impl SuspensionEntry {
+    /// Check if this suspension is still active at the given time.
+    pub fn is_active(&self, now: i64) -> bool {
+        match self.expires_at {
+            None => true, // Indefinite
+            Some(expires) => now < expires,
+        }
+    }
+}
+
+/// Registry tracking suspended agents for runtime enforcement (G-9.1, INV-EMERG-1).
+///
+/// Nodes MUST check this registry before accepting events from agents.
+/// Events from suspended agents MUST be rejected.
+#[derive(Debug, Default)]
+pub struct SuspensionRegistry {
+    /// Active suspensions indexed by agent public key.
+    suspensions: std::collections::HashMap<PublicKey, Vec<SuspensionEntry>>,
+    /// Globally paused: if Some, only exception agents can act.
+    global_pause: Option<GlobalPauseState>,
+}
+
+/// State of a global pause.
+#[derive(Debug, Clone)]
+pub struct GlobalPauseState {
+    /// Reason for the pause.
+    pub reason: String,
+    /// When the pause expires.
+    pub expires_at: i64,
+    /// Agents exempt from the pause.
+    pub exceptions: Vec<PublicKey>,
+}
+
+impl SuspensionRegistry {
+    /// Create an empty registry.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record a suspension.
+    pub fn suspend(
+        &mut self,
+        agent: PublicKey,
+        scope: SuspensionScope,
+        reason: String,
+        now: i64,
+        duration: Option<DurationMs>,
+    ) {
+        let expires_at = duration.map(|d| now.saturating_add(d));
+        let entry = SuspensionEntry {
+            agent: agent.clone(),
+            scope,
+            suspended_at: now,
+            expires_at,
+            reason,
+        };
+        self.suspensions
+            .entry(agent)
+            .or_default()
+            .push(entry);
+    }
+
+    /// Set a global pause.
+    pub fn global_pause(
+        &mut self,
+        reason: String,
+        duration_ms: DurationMs,
+        exceptions: Vec<PublicKey>,
+        now: i64,
+    ) {
+        self.global_pause = Some(GlobalPauseState {
+            reason,
+            expires_at: now.saturating_add(duration_ms),
+            exceptions,
+        });
+    }
+
+    /// Lift a specific agent suspension.
+    pub fn lift_suspension(&mut self, agent: &PublicKey) {
+        self.suspensions.remove(agent);
+    }
+
+    /// Lift the global pause.
+    pub fn lift_global_pause(&mut self) {
+        self.global_pause = None;
+    }
+
+    /// Check if an agent is allowed to act at the given time (Rule 9.3.3).
+    ///
+    /// Returns Ok(()) if allowed, Err with reason if suspended.
+    pub fn check_agent(&self, agent: &PublicKey, now: i64) -> Result<()> {
+        // Check global pause first (INV-EMERG-3)
+        if let Some(pause) = &self.global_pause {
+            if now < pause.expires_at && !pause.exceptions.contains(agent) {
+                return Err(Error::invalid_input(format!(
+                    "global pause active: {}",
+                    pause.reason
+                )));
+            }
+        }
+
+        // Check per-agent suspensions (INV-EMERG-1)
+        if let Some(entries) = self.suspensions.get(agent) {
+            for entry in entries {
+                if entry.is_active(now) {
+                    match &entry.scope {
+                        SuspensionScope::Full => {
+                            return Err(Error::invalid_input(format!(
+                                "agent is fully suspended: {}",
+                                entry.reason
+                            )));
+                        }
+                        _ => {
+                            // Partial suspensions are checked in permits()
+                            // but a Full suspension blocks everything
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Check if an agent's use of a specific capability is suspended.
+    pub fn check_capability(
+        &self,
+        agent: &PublicKey,
+        capability: &CapabilityKind,
+        now: i64,
+    ) -> Result<()> {
+        if let Some(entries) = self.suspensions.get(agent) {
+            for entry in entries {
+                if entry.is_active(now) && entry.scope.includes_capability(capability) {
+                    return Err(Error::invalid_input(format!(
+                        "capability suspended for agent: {}",
+                        entry.reason
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Check if an agent's access to a specific resource is blocked.
+    pub fn check_resource(
+        &self,
+        agent: &PublicKey,
+        resource: &ResourceId,
+        now: i64,
+    ) -> Result<()> {
+        if let Some(entries) = self.suspensions.get(agent) {
+            for entry in entries {
+                if entry.is_active(now) && entry.scope.includes_resource(resource) {
+                    return Err(Error::invalid_input(format!(
+                        "resource access blocked for agent: {}",
+                        entry.reason
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Prune expired entries.
+    pub fn prune_expired(&mut self, now: i64) {
+        for entries in self.suspensions.values_mut() {
+            entries.retain(|e| e.is_active(now));
+        }
+        self.suspensions.retain(|_, entries| !entries.is_empty());
+
+        if let Some(pause) = &self.global_pause {
+            if now >= pause.expires_at {
+                self.global_pause = None;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

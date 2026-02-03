@@ -163,6 +163,54 @@ impl AgentAttestation {
     pub fn get_tool(&self, tool_id: &str) -> Option<&ToolAttestation> {
         self.tools.iter().find(|t| t.tool_id == tool_id)
     }
+
+    /// Validate attestation binding: the agent_id in the attestation must
+    /// match the actor's public key (G-4.2, Rule 4.3.3).
+    pub fn validate_binding(&self, actor_key: &PublicKey) -> Result<()> {
+        if self.agent_id != *actor_key {
+            return Err(Error::invalid_input(
+                "attestation agent_id does not match event actor",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Validate tool consistency: the invoked tool must be listed in the
+    /// agent's attestation (G-4.3, Rule 4.3.4, INV-ATTEST-3).
+    pub fn validate_tool(&self, tool_id: &str) -> Result<()> {
+        if !self.has_tool(tool_id) {
+            return Err(Error::invalid_input(format!(
+                "tool '{}' not found in agent attestation",
+                tool_id
+            )));
+        }
+        Ok(())
+    }
+
+    /// Full attestation validation at action time (Rule 4.3.2).
+    ///
+    /// Checks:
+    /// - Signature validity
+    /// - Temporal validity (not expired)
+    /// - Binding to actor
+    pub fn validate_for_action(
+        &self,
+        actor_key: &PublicKey,
+        action_time: i64,
+    ) -> Result<()> {
+        // Check validity window
+        if !self.is_valid_at(action_time) {
+            return Err(Error::invalid_input("attestation has expired"));
+        }
+
+        // Check signature
+        self.verify_signature()?;
+
+        // Check binding
+        self.validate_binding(actor_key)?;
+
+        Ok(())
+    }
 }
 
 /// Builder for AgentAttestation.
@@ -868,5 +916,148 @@ mod tests {
         assert_eq!(attestation.validity_period(), Duration::from_secs(7200));
         assert_eq!(attestation.authority(), &authority.public_key());
         assert_eq!(attestation.expires_at(), 1000000 + 7200 * 1000);
+    }
+
+    // === Attestation Binding Tests (G-4.2) ===
+
+    #[test]
+    fn validate_binding_passes_for_matching_agent() {
+        let authority = SecretKey::generate();
+        let agent = SecretKey::generate();
+
+        let attestation = AgentAttestation::builder()
+            .agent_id(agent.public_key())
+            .code_hash(hash(b"code"))
+            .config_hash(hash(b"config"))
+            .prompt_hash(hash(b"prompt"))
+            .runtime(test_runtime())
+            .sign(&authority)
+            .unwrap();
+
+        assert!(attestation.validate_binding(&agent.public_key()).is_ok());
+    }
+
+    #[test]
+    fn validate_binding_fails_for_different_agent() {
+        let authority = SecretKey::generate();
+        let agent = SecretKey::generate();
+        let other = SecretKey::generate();
+
+        let attestation = AgentAttestation::builder()
+            .agent_id(agent.public_key())
+            .code_hash(hash(b"code"))
+            .config_hash(hash(b"config"))
+            .prompt_hash(hash(b"prompt"))
+            .runtime(test_runtime())
+            .sign(&authority)
+            .unwrap();
+
+        let result = attestation.validate_binding(&other.public_key());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not match"));
+    }
+
+    // === Tool Consistency Tests (G-4.3) ===
+
+    #[test]
+    fn validate_tool_passes_for_attested_tool() {
+        let authority = SecretKey::generate();
+        let agent = SecretKey::generate();
+
+        let attestation = AgentAttestation::builder()
+            .agent_id(agent.public_key())
+            .code_hash(hash(b"code"))
+            .config_hash(hash(b"config"))
+            .prompt_hash(hash(b"prompt"))
+            .runtime(test_runtime())
+            .tool(test_tool())
+            .sign(&authority)
+            .unwrap();
+
+        assert!(attestation.validate_tool("read_file").is_ok());
+    }
+
+    #[test]
+    fn validate_tool_fails_for_unattested_tool() {
+        let authority = SecretKey::generate();
+        let agent = SecretKey::generate();
+
+        let attestation = AgentAttestation::builder()
+            .agent_id(agent.public_key())
+            .code_hash(hash(b"code"))
+            .config_hash(hash(b"config"))
+            .prompt_hash(hash(b"prompt"))
+            .runtime(test_runtime())
+            .tool(test_tool())
+            .sign(&authority)
+            .unwrap();
+
+        let result = attestation.validate_tool("execute_code");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    // === Full Action Validation Tests ===
+
+    #[test]
+    fn validate_for_action_passes_when_valid() {
+        let authority = SecretKey::generate();
+        let agent = SecretKey::generate();
+
+        let attestation = AgentAttestation::builder()
+            .agent_id(agent.public_key())
+            .code_hash(hash(b"code"))
+            .config_hash(hash(b"config"))
+            .prompt_hash(hash(b"prompt"))
+            .runtime(test_runtime())
+            .attested_at(1000)
+            .validity_period(Duration::from_secs(3600))
+            .sign(&authority)
+            .unwrap();
+
+        // Within validity window
+        assert!(attestation.validate_for_action(&agent.public_key(), 2000).is_ok());
+    }
+
+    #[test]
+    fn validate_for_action_fails_when_expired() {
+        let authority = SecretKey::generate();
+        let agent = SecretKey::generate();
+
+        let attestation = AgentAttestation::builder()
+            .agent_id(agent.public_key())
+            .code_hash(hash(b"code"))
+            .config_hash(hash(b"config"))
+            .prompt_hash(hash(b"prompt"))
+            .runtime(test_runtime())
+            .attested_at(1000)
+            .validity_period(Duration::from_secs(1))
+            .sign(&authority)
+            .unwrap();
+
+        // Past validity window (1000ms + 1000ms = 2000, checking at 3000)
+        let result = attestation.validate_for_action(&agent.public_key(), 3000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_for_action_fails_for_wrong_agent() {
+        let authority = SecretKey::generate();
+        let agent = SecretKey::generate();
+        let other = SecretKey::generate();
+
+        let attestation = AgentAttestation::builder()
+            .agent_id(agent.public_key())
+            .code_hash(hash(b"code"))
+            .config_hash(hash(b"config"))
+            .prompt_hash(hash(b"prompt"))
+            .runtime(test_runtime())
+            .attested_at(1000)
+            .validity_period(Duration::from_secs(3600))
+            .sign(&authority)
+            .unwrap();
+
+        let result = attestation.validate_for_action(&other.public_key(), 2000);
+        assert!(result.is_err());
     }
 }

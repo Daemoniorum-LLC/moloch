@@ -8,10 +8,12 @@ use std::collections::HashMap;
 
 use crate::crypto::{hash, Hash, PublicKey, Sig};
 use crate::error::{Error, Result};
+use crate::event::ResourceId;
 
 use super::capability::{CapabilityId, CapabilityKind};
 use super::causality::CausalContext;
 use super::outcome::ActionOutcome;
+use super::principal::PrincipalId;
 
 /// Duration in milliseconds.
 pub type DurationMs = i64;
@@ -1242,6 +1244,174 @@ impl CoordinationEvent {
                 coordination_id, ..
             } => *coordination_id,
         }
+    }
+}
+
+/// Quorum policy for consensus-based coordination (G-7.1).
+///
+/// Defines the threshold for agreement in multi-agent coordination.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuorumPolicy {
+    /// Minimum number of agents that must agree.
+    pub required_votes: u32,
+    /// Total number of agents participating.
+    pub total_participants: u32,
+    /// Maximum time to wait for votes (milliseconds).
+    pub timeout_ms: u64,
+    /// Whether abstentions count toward quorum.
+    pub abstentions_count: bool,
+}
+
+impl QuorumPolicy {
+    /// Create a majority quorum (> 50%).
+    pub fn majority(total: u32) -> Self {
+        Self {
+            required_votes: total / 2 + 1,
+            total_participants: total,
+            timeout_ms: 30_000,
+            abstentions_count: false,
+        }
+    }
+
+    /// Create a unanimous quorum (100%).
+    pub fn unanimous(total: u32) -> Self {
+        Self {
+            required_votes: total,
+            total_participants: total,
+            timeout_ms: 60_000,
+            abstentions_count: false,
+        }
+    }
+
+    /// Create a custom threshold quorum.
+    pub fn threshold(required: u32, total: u32) -> Self {
+        Self {
+            required_votes: required,
+            total_participants: total,
+            timeout_ms: 30_000,
+            abstentions_count: false,
+        }
+    }
+
+    /// Set the timeout.
+    pub fn with_timeout(mut self, timeout_ms: u64) -> Self {
+        self.timeout_ms = timeout_ms;
+        self
+    }
+
+    /// Check if the quorum is met given the number of votes.
+    pub fn is_met(&self, votes_for: u32) -> bool {
+        votes_for >= self.required_votes
+    }
+}
+
+/// A conflict between agents operating on shared resources (G-7.2).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Conflict {
+    /// Unique conflict identifier.
+    pub id: ConflictId,
+    /// Agents involved in the conflict.
+    pub agents: Vec<PublicKey>,
+    /// Resources under contention.
+    pub resources: Vec<ResourceId>,
+    /// Description of the conflict.
+    pub description: String,
+    /// When the conflict was detected (Unix ms).
+    pub detected_at: i64,
+    /// Current resolution status.
+    pub status: ConflictStatus,
+}
+
+define_id!(ConflictId, "conflict identifier");
+
+/// Status of a conflict.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ConflictStatus {
+    /// Conflict detected, awaiting resolution.
+    Detected,
+    /// Resolution in progress.
+    Resolving,
+    /// Conflict resolved.
+    Resolved {
+        /// How it was resolved.
+        resolution: ConflictResolutionMethod,
+        /// When it was resolved (Unix ms).
+        resolved_at: i64,
+    },
+}
+
+/// Methods for resolving agent conflicts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "method", rename_all = "snake_case")]
+pub enum ConflictResolutionMethod {
+    /// First agent to claim wins.
+    FirstWriter,
+    /// Priority-based (higher priority agent wins).
+    Priority { winner: PublicKey },
+    /// Human arbitration.
+    HumanArbitration { arbiter: PrincipalId },
+    /// Agents merge their changes.
+    Merge,
+    /// All conflicting changes rolled back.
+    Rollback,
+}
+
+/// Cost tracking for multi-agent coordination (G-10.1).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CoordinationCostTracker {
+    /// Total compute cost (in abstract units).
+    pub compute_cost: u64,
+    /// Total API call count.
+    pub api_calls: u64,
+    /// Total tokens consumed (for LLM agents).
+    pub tokens_consumed: u64,
+    /// Budget limit (None = unlimited).
+    pub budget_limit: Option<u64>,
+    /// Cost entries per agent.
+    pub per_agent_costs: std::collections::HashMap<PublicKey, u64>,
+}
+
+impl CoordinationCostTracker {
+    /// Create a new tracker with optional budget.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set a budget limit.
+    pub fn with_budget(mut self, limit: u64) -> Self {
+        self.budget_limit = Some(limit);
+        self
+    }
+
+    /// Record a cost for an agent.
+    pub fn record_cost(&mut self, agent: &PublicKey, cost: u64) {
+        self.compute_cost = self.compute_cost.saturating_add(cost);
+        *self.per_agent_costs.entry(agent.clone()).or_default() += cost;
+    }
+
+    /// Record an API call.
+    pub fn record_api_call(&mut self) {
+        self.api_calls += 1;
+    }
+
+    /// Record token consumption.
+    pub fn record_tokens(&mut self, tokens: u64) {
+        self.tokens_consumed = self.tokens_consumed.saturating_add(tokens);
+    }
+
+    /// Check if the budget is exceeded.
+    pub fn is_over_budget(&self) -> bool {
+        match self.budget_limit {
+            Some(limit) => self.compute_cost >= limit,
+            None => false,
+        }
+    }
+
+    /// Get remaining budget (None if unlimited).
+    pub fn remaining_budget(&self) -> Option<u64> {
+        self.budget_limit
+            .map(|limit| limit.saturating_sub(self.compute_cost))
     }
 }
 
