@@ -451,7 +451,7 @@ pub struct CoordinatedActionSpec {
     /// What the group is trying to accomplish.
     goal: String,
     /// Sub-tasks assigned to each participant.
-    tasks: HashMap<String, Vec<Task>>, // Key is hex-encoded public key
+    tasks: HashMap<PublicKey, Vec<Task>>,
     /// Dependencies between tasks.
     dependencies: Vec<TaskDependency>,
     /// Success criteria for the coordination.
@@ -474,7 +474,7 @@ impl CoordinatedActionSpec {
 
     /// Add tasks for a participant.
     pub fn with_tasks(mut self, agent: &PublicKey, tasks: Vec<Task>) -> Self {
-        self.tasks.insert(hex::encode(agent.as_bytes()), tasks);
+        self.tasks.insert(agent.clone(), tasks);
         self
     }
 
@@ -503,9 +503,7 @@ impl CoordinatedActionSpec {
 
     /// Get tasks for a participant.
     pub fn tasks_for(&self, agent: &PublicKey) -> Option<&[Task]> {
-        self.tasks
-            .get(&hex::encode(agent.as_bytes()))
-            .map(|v| v.as_slice())
+        self.tasks.get(agent).map(|v| v.as_slice())
     }
 
     /// Get all tasks.
@@ -590,8 +588,8 @@ impl CoordinationProtocol {
 pub struct CoordinationMetrics {
     /// Total duration in milliseconds.
     total_duration: DurationMs,
-    /// Per-agent duration (key is hex-encoded public key).
-    per_agent_duration: HashMap<String, DurationMs>,
+    /// Per-agent duration.
+    per_agent_duration: HashMap<PublicKey, DurationMs>,
     /// Communication overhead in milliseconds.
     communication_overhead: DurationMs,
     /// Number of retries.
@@ -611,8 +609,7 @@ impl CoordinationMetrics {
 
     /// Set agent duration.
     pub fn with_agent_duration(mut self, agent: &PublicKey, duration: DurationMs) -> Self {
-        self.per_agent_duration
-            .insert(hex::encode(agent.as_bytes()), duration);
+        self.per_agent_duration.insert(agent.clone(), duration);
         self
     }
 
@@ -635,9 +632,7 @@ impl CoordinationMetrics {
 
     /// Get agent duration.
     pub fn agent_duration(&self, agent: &PublicKey) -> Option<DurationMs> {
-        self.per_agent_duration
-            .get(&hex::encode(agent.as_bytes()))
-            .copied()
+        self.per_agent_duration.get(agent).copied()
     }
 
     /// Get communication overhead.
@@ -656,8 +651,8 @@ impl CoordinationMetrics {
 pub struct CoordinationResult {
     /// Overall outcome.
     outcome: ActionOutcome,
-    /// Per-agent outcomes (key is hex-encoded public key).
-    agent_outcomes: HashMap<String, ActionOutcome>,
+    /// Per-agent outcomes.
+    agent_outcomes: HashMap<PublicKey, ActionOutcome>,
     /// Combined output.
     output: serde_json::Value,
     /// Coordination metrics.
@@ -681,8 +676,7 @@ impl CoordinationResult {
 
     /// Add an agent outcome.
     pub fn with_agent_outcome(mut self, agent: &PublicKey, outcome: ActionOutcome) -> Self {
-        self.agent_outcomes
-            .insert(hex::encode(agent.as_bytes()), outcome);
+        self.agent_outcomes.insert(agent.clone(), outcome);
         self
     }
 
@@ -693,7 +687,7 @@ impl CoordinationResult {
 
     /// Get agent outcome.
     pub fn agent_outcome(&self, agent: &PublicKey) -> Option<&ActionOutcome> {
-        self.agent_outcomes.get(&hex::encode(agent.as_bytes()))
+        self.agent_outcomes.get(agent)
     }
 
     /// Get the output.
@@ -1117,8 +1111,8 @@ pub enum CoordinationEvent {
         agents: Vec<PublicKey>,
         /// Subject of disagreement.
         subject: String,
-        /// Positions (key is hex-encoded public key).
-        positions: HashMap<String, String>,
+        /// Positions held by each agent.
+        positions: HashMap<PublicKey, String>,
     },
     /// Coordination completed.
     Completed {
@@ -1758,5 +1752,56 @@ mod tests {
         assert_eq!(metrics.agent_duration(&key.public_key()), Some(5000));
         assert_eq!(metrics.communication_overhead(), 500);
         assert_eq!(metrics.retry_count(), 2);
+    }
+
+    // === Phase 9: Type-safe key lookups ===
+
+    #[test]
+    fn coordination_task_lookup_by_public_key() {
+        let key = test_key();
+        let task = Task::new("deploy-service");
+        let spec = CoordinatedActionSpec::new("deploy").with_tasks(&key.public_key(), vec![task]);
+
+        let tasks = spec.tasks_for(&key.public_key());
+        assert!(tasks.is_some());
+        assert_eq!(tasks.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn coordination_task_lookup_different_key_returns_none() {
+        let key1 = test_key();
+        let key2 = test_key();
+        let task = Task::new("deploy-service");
+        let spec = CoordinatedActionSpec::new("deploy").with_tasks(&key1.public_key(), vec![task]);
+
+        assert!(spec.tasks_for(&key2.public_key()).is_none());
+    }
+
+    #[test]
+    fn coordination_result_agent_outcome_by_public_key() {
+        let key1 = test_key();
+        let key2 = test_key();
+        let result = CoordinationResult::new(
+            ActionOutcome::success(serde_json::json!({})),
+            serde_json::json!({}),
+            CoordinationMetrics::new(1000),
+        )
+        .with_agent_outcome(
+            &key1.public_key(),
+            ActionOutcome::success(serde_json::json!({})),
+        );
+
+        assert!(result.agent_outcome(&key1.public_key()).is_some());
+        assert!(result.agent_outcome(&key2.public_key()).is_none());
+    }
+
+    #[test]
+    fn coordination_metrics_agent_duration_by_public_key() {
+        let key1 = test_key();
+        let key2 = test_key();
+        let metrics = CoordinationMetrics::new(5000).with_agent_duration(&key1.public_key(), 3000);
+
+        assert_eq!(metrics.agent_duration(&key1.public_key()), Some(3000));
+        assert_eq!(metrics.agent_duration(&key2.public_key()), None);
     }
 }
