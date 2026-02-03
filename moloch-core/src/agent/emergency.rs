@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::crypto::PublicKey;
+use crate::error::{Error, Result};
 use crate::event::{EventId, ResourceId};
 
 use super::capability::{CapabilityId, CapabilityKind};
@@ -427,9 +428,13 @@ impl EmergencyEventBuilder {
     }
 
     /// Build the emergency event.
-    pub fn build(self) -> Result<EmergencyEvent, &'static str> {
-        let action = self.action.ok_or("action is required")?;
-        let initiator = self.initiator.ok_or("initiator is required")?;
+    pub fn build(self) -> Result<EmergencyEvent> {
+        let action = self
+            .action
+            .ok_or_else(|| Error::invalid_input("action is required"))?;
+        let initiator = self
+            .initiator
+            .ok_or_else(|| Error::invalid_input("initiator is required"))?;
         let priority = self.priority.unwrap_or(EmergencyPriority::High);
         let declared_at = self
             .declared_at
@@ -1095,5 +1100,18 @@ mod tests {
     fn trigger_human_report() {
         let trigger = EmergencyTrigger::human_report(test_principal());
         assert_eq!(trigger.recommended_priority(), EmergencyPriority::High);
+    }
+
+    // === Builder Error Type Consistency Tests (Finding 5.1) ===
+
+    #[test]
+    fn emergency_event_build_error_is_crate_error() {
+        let result = EmergencyEvent::builder()
+            .initiator(test_principal())
+            .build();
+
+        // Should return crate::error::Error, not &'static str
+        let err: crate::error::Error = result.unwrap_err();
+        assert!(err.to_string().contains("action"));
     }
 }

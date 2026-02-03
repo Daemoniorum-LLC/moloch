@@ -13,10 +13,13 @@
 //! - [`outcome`] - Outcome verification and attestation
 //! - [`emergency`] - Emergency control actions
 //! - [`coordination`] - Multi-agent coordination
+//! - [`id`] - Generic 16-byte identifier type and macro
 //! - [`timestamp`] - Type-safe millisecond timestamps
 
 pub mod attestation;
 pub mod capability;
+#[macro_use]
+pub mod id;
 pub mod causality;
 pub mod coordination;
 pub mod emergency;
@@ -54,6 +57,7 @@ pub use hitl::{
     ApprovalRequestId, ApprovalResponse, ApprovalStatus, CancellationActor, Cost, EscalationPolicy,
     ImpactAssessment, ProposedAction, ProposedActionBuilder, Severity,
 };
+pub use id::Id16;
 pub use outcome::{
     ActionOutcome, Attestor, DisputeStatus, Evidence, IdempotencyKey, IdempotencyRecord,
     OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute,
