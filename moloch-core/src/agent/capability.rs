@@ -1078,6 +1078,13 @@ impl CapabilitySet {
                 continue;
             }
 
+            // Check revocation before expiry
+            if cap.is_revoked() {
+                return CapabilityCheck::Denied {
+                    reason: DenialReason::Revoked,
+                };
+            }
+
             // Check expiry
             if !cap.is_valid_at(timestamp) {
                 return CapabilityCheck::Denied {
@@ -1948,5 +1955,146 @@ mod tests {
             &ResourceScope::specific("repo:a"),
             &ResourceScope::specific("repo:b")
         ));
+    }
+
+    #[test]
+    fn capability_set_denies_revoked() {
+        let key = SecretKey::generate();
+        let grantor = test_grantor();
+
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(grantor.clone())
+            .sign(&key)
+            .unwrap();
+
+        cap.revoke("policy violation");
+
+        let set = CapabilitySet::with_capabilities(key.public_key(), vec![cap]);
+        let resource = test_resource("repository", "org/project");
+        let now = chrono::Utc::now().timestamp_millis();
+
+        let result = set.permits(&CapabilityKind::Read, &resource, now);
+        assert_eq!(
+            result,
+            CapabilityCheck::Denied {
+                reason: DenialReason::Revoked
+            }
+        );
+    }
+
+    #[test]
+    fn delegate_multi_level_chain() {
+        let key = SecretKey::generate();
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .delegatable(3)
+            .sign(&key)
+            .unwrap();
+
+        // Level 0 -> 1
+        let child1 = cap.delegate(&key, None, None).unwrap();
+        assert_eq!(child1.delegation_depth(), 1);
+        assert_eq!(child1.parent_capability_id(), Some(cap.id()));
+
+        // Level 1 -> 2
+        let child2 = child1.delegate(&key, None, None).unwrap();
+        assert_eq!(child2.delegation_depth(), 2);
+        assert_eq!(child2.parent_capability_id(), Some(child1.id()));
+
+        // Level 2 -> 3
+        let child3 = child2.delegate(&key, None, None).unwrap();
+        assert_eq!(child3.delegation_depth(), 3);
+        assert_eq!(child3.parent_capability_id(), Some(child2.id()));
+
+        // Level 3 -> 4: exceeds max_delegation_depth=3
+        let err = child3.delegate(&key, None, None).unwrap_err();
+        assert!(err.to_string().contains("delegation depth"));
+    }
+
+    #[test]
+    fn revoke_idempotent() {
+        let key = SecretKey::generate();
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .sign(&key)
+            .unwrap();
+
+        cap.revoke("first reason");
+        let ts1 = cap.revoked_at().unwrap();
+        let reason1 = cap.revocation_reason().unwrap().to_string();
+
+        // Second revoke overwrites (latest revoke wins)
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        cap.revoke("updated reason");
+        let ts2 = cap.revoked_at().unwrap();
+        let reason2 = cap.revocation_reason().unwrap().to_string();
+
+        // Remains revoked with updated info
+        assert!(cap.is_revoked());
+        assert!(ts2 >= ts1);
+        assert_eq!(reason2, "updated reason");
+        assert_ne!(reason1, reason2);
+    }
+
+    #[test]
+    fn lifecycle_state_revoked_takes_precedence_over_expired() {
+        let key = SecretKey::generate();
+        let now = chrono::Utc::now().timestamp_millis();
+
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .expires_at(now - 1000) // already expired
+            .sign(&key)
+            .unwrap();
+
+        // Without revocation, it's Expired
+        assert_eq!(cap.lifecycle_state(now), CapabilityState::Expired);
+
+        // After revocation, Revoked takes precedence
+        cap.revoke("also revoked");
+        assert_eq!(cap.lifecycle_state(now), CapabilityState::Revoked);
+    }
+
+    #[test]
+    fn delegate_inherits_scope_when_none() {
+        let key = SecretKey::generate();
+        let parent_scope = ResourceScope::pattern("repository:org/*");
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(parent_scope.clone())
+            .grantor(test_grantor())
+            .delegatable(3)
+            .sign(&key)
+            .unwrap();
+
+        let child = cap.delegate(&key, None, None).unwrap();
+        assert_eq!(child.scope(), &parent_scope);
+    }
+
+    #[test]
+    fn delegate_inherits_expiry_when_none() {
+        let key = SecretKey::generate();
+        let now = chrono::Utc::now().timestamp_millis();
+        let parent_expiry = now + 60_000;
+
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .delegatable(3)
+            .expires_at(parent_expiry)
+            .sign(&key)
+            .unwrap();
+
+        let child = cap.delegate(&key, None, None).unwrap();
+        assert_eq!(child.expires_at(), Some(parent_expiry));
     }
 }
