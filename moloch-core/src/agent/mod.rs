@@ -33,8 +33,8 @@ pub use attestation::{
 };
 pub use capability::{
     Capability, CapabilityBuilder, CapabilityCheck, CapabilityConstraints, CapabilityId,
-    CapabilityKind, CapabilitySet, CapabilitySetId, DayOfWeek, DenialReason, RateLimit,
-    ResourceScope, TimeOfDay, TimeWindow,
+    CapabilityKind, CapabilitySet, CapabilitySetId, CapabilityState, DayOfWeek, DenialReason,
+    RateLimit, ResourceScope, TimeOfDay, TimeWindow,
 };
 pub use causality::{CausalContext, CausalContextBuilder, CrossSessionReference};
 pub use coordination::{
