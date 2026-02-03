@@ -63,7 +63,7 @@ pub use hitl::{
 pub use id::Id16;
 pub use outcome::{
     ActionOutcome, Attestor, DisputeStatus, Evidence, IdempotencyKey, IdempotencyRecord,
-    OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute,
+    IdempotencyStore, OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute,
 };
 pub use principal::{PrincipalId, PrincipalKind};
 pub use reasoning::{

@@ -3,6 +3,8 @@
 //! Outcome verification confirms that recorded actions actually occurred as described.
 //! It answers: "Did this action actually happen?"
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::crypto::{hash, Hash, PublicKey, SecretKey, Sig};
@@ -855,6 +857,53 @@ impl DisputeStatus {
     }
 }
 
+/// In-memory idempotency store with automatic expiration.
+///
+/// Provides insert, lookup, and cleanup for `IdempotencyRecord` values,
+/// keyed by the hash of the associated `IdempotencyKey`. Expired records
+/// are treated as invisible on lookup and can be removed via `cleanup()`.
+#[derive(Debug, Default)]
+pub struct IdempotencyStore {
+    records: HashMap<Hash, IdempotencyRecord>,
+}
+
+impl IdempotencyStore {
+    /// Create an empty store.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Insert a record. Overwrites any existing record with the same key hash.
+    pub fn insert(&mut self, record: IdempotencyRecord) {
+        let key_hash = record.key().hash();
+        self.records.insert(key_hash, record);
+    }
+
+    /// Look up a record by its idempotency key.
+    ///
+    /// Returns `None` if the key is unknown **or** the record has expired.
+    pub fn lookup(&self, key: &IdempotencyKey) -> Option<&IdempotencyRecord> {
+        self.records.get(&key.hash()).filter(|r| !r.is_expired())
+    }
+
+    /// Remove all expired records, returning the number removed.
+    pub fn cleanup(&mut self) -> usize {
+        let before = self.records.len();
+        self.records.retain(|_, r| !r.is_expired());
+        before - self.records.len()
+    }
+
+    /// Number of records (including expired ones not yet cleaned up).
+    pub fn len(&self) -> usize {
+        self.records.len()
+    }
+
+    /// Whether the store is empty.
+    pub fn is_empty(&self) -> bool {
+        self.records.is_empty()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1287,6 +1336,119 @@ mod tests {
 
         assert!(!record.is_valid());
         assert!(record.is_expired());
+    }
+
+    // === IdempotencyStore Tests ===
+
+    #[test]
+    fn idempotency_store_insert_and_lookup() {
+        let mut store = IdempotencyStore::new();
+        let key = test_key();
+        let idem_key = IdempotencyKey::new(key.public_key(), "write", "req-1");
+        let record = IdempotencyRecord::new(
+            idem_key.clone(),
+            test_event_id(),
+            ActionOutcome::success(serde_json::json!({})),
+            60000,
+        );
+
+        let expected_event_id = record.original_event_id();
+        store.insert(record);
+        let found = store.lookup(&idem_key);
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().original_event_id(), expected_event_id);
+    }
+
+    #[test]
+    fn idempotency_store_returns_none_for_unknown() {
+        let store = IdempotencyStore::new();
+        let key = test_key();
+        let idem_key = IdempotencyKey::new(key.public_key(), "write", "unknown");
+        assert!(store.lookup(&idem_key).is_none());
+    }
+
+    #[test]
+    fn idempotency_store_expired_records_not_returned() {
+        let mut store = IdempotencyStore::new();
+        let key = test_key();
+        let idem_key = IdempotencyKey::new(key.public_key(), "write", "req-1");
+        let record = IdempotencyRecord::new(
+            idem_key.clone(),
+            test_event_id(),
+            ActionOutcome::success(serde_json::json!({})),
+            -1, // Already expired
+        );
+
+        store.insert(record);
+        assert!(store.lookup(&idem_key).is_none()); // Expired = invisible
+    }
+
+    #[test]
+    fn idempotency_store_cleanup_removes_expired() {
+        let mut store = IdempotencyStore::new();
+        let key = test_key();
+
+        // Insert 3 expired records
+        for i in 0..3 {
+            let idem_key = IdempotencyKey::new(key.public_key(), "write", format!("expired-{}", i));
+            store.insert(IdempotencyRecord::new(
+                idem_key,
+                test_event_id(),
+                ActionOutcome::success(serde_json::json!({})),
+                -1, // Already expired
+            ));
+        }
+
+        // Insert 2 valid records
+        for i in 0..2 {
+            let idem_key = IdempotencyKey::new(key.public_key(), "write", format!("valid-{}", i));
+            store.insert(IdempotencyRecord::new(
+                idem_key,
+                test_event_id(),
+                ActionOutcome::success(serde_json::json!({})),
+                60000, // 1 minute TTL
+            ));
+        }
+
+        assert_eq!(store.len(), 5);
+        let removed = store.cleanup();
+        assert_eq!(removed, 3);
+        assert_eq!(store.len(), 2);
+    }
+
+    #[test]
+    fn idempotency_store_overwrite_existing() {
+        let mut store = IdempotencyStore::new();
+        let key = test_key();
+        let idem_key = IdempotencyKey::new(key.public_key(), "write", "req-1");
+
+        let record1 = IdempotencyRecord::new(
+            idem_key.clone(),
+            test_event_id(),
+            ActionOutcome::success(serde_json::json!({"version": 1})),
+            60000,
+        );
+        store.insert(record1);
+
+        let event2 = EventId(hash(b"second-event"));
+        let record2 = IdempotencyRecord::new(
+            idem_key.clone(),
+            event2,
+            ActionOutcome::success(serde_json::json!({"version": 2})),
+            60000,
+        );
+        store.insert(record2);
+
+        assert_eq!(store.len(), 1);
+        let found = store.lookup(&idem_key).unwrap();
+        assert_eq!(found.original_event_id(), event2);
+    }
+
+    #[test]
+    fn idempotency_store_is_empty() {
+        let store = IdempotencyStore::new();
+        assert!(store.is_empty());
+        assert_eq!(store.len(), 0);
     }
 
     // === OutcomeDispute Tests ===
