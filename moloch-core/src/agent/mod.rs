@@ -15,8 +15,10 @@
 //! - [`coordination`] - Multi-agent coordination
 //! - [`id`] - Generic 16-byte identifier type and macro
 //! - [`timestamp`] - Type-safe millisecond timestamps
+//! - [`audit_bridge`] - Bridge to core audit event system
 
 pub mod attestation;
+pub mod audit_bridge;
 pub mod capability;
 #[macro_use]
 pub mod id;
@@ -36,6 +38,7 @@ pub use attestation::{
     AgentAttestation, AgentAttestationBuilder, AttestationError, RequiredCapability,
     RuntimeAttestation, TeeQuote, TeeType, ToolAttestation,
 };
+pub use audit_bridge::{AgentAuditEventBuilder, AgentEventMetadata};
 pub use capability::{
     Capability, CapabilityBuilder, CapabilityCheck, CapabilityConstraints, CapabilityId,
     CapabilityKind, CapabilitySet, CapabilitySetId, CapabilityState, DayOfWeek, DenialReason,
