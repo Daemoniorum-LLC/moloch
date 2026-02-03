@@ -108,13 +108,16 @@ impl AgentAttestation {
     /// Returns true if:
     /// - `attested_at + validity_period > check_time`
     pub fn is_valid_at(&self, check_time: i64) -> bool {
-        let expires_at = self.attested_at.saturating_add(self.validity_period_ms as i64);
+        let expires_at = self
+            .attested_at
+            .saturating_add(self.validity_period_ms as i64);
         check_time < expires_at
     }
 
     /// Get when this attestation expires.
     pub fn expires_at(&self) -> i64 {
-        self.attested_at.saturating_add(self.validity_period_ms as i64)
+        self.attested_at
+            .saturating_add(self.validity_period_ms as i64)
     }
 
     /// Compute the canonical bytes for signing/verification.
@@ -285,9 +288,7 @@ impl AgentAttestationBuilder {
             return Err(Error::invalid_input("validity_period must be positive"));
         }
 
-        let authority = self
-            .authority
-            .unwrap_or_else(|| authority_key.public_key());
+        let authority = self.authority.unwrap_or_else(|| authority_key.public_key());
 
         // Create attestation without signature first
         let mut attestation = AgentAttestation {

@@ -390,9 +390,7 @@ impl TimeWindow {
         }
 
         // Check time of day
-        let current_seconds = (datetime.hour() as u32) * 3600
-            + (datetime.minute() as u32) * 60
-            + datetime.second() as u32;
+        let current_seconds = datetime.hour() * 3600 + datetime.minute() * 60 + datetime.second();
 
         let start_seconds = self.start.seconds_since_midnight();
         let end_seconds = self.end.seconds_since_midnight();
@@ -1345,7 +1343,9 @@ mod tests {
         let set1 = CapabilitySet::with_capabilities(agent1_key.public_key(), vec![cap]);
 
         // First delegation succeeds
-        let set2 = set1.delegate(vec![cap_id], agent2_key.public_key()).unwrap();
+        let set2 = set1
+            .delegate(vec![cap_id], agent2_key.public_key())
+            .unwrap();
 
         // Second delegation should fail
         let result = set2.delegate(vec![cap_id], agent3_key.public_key());
@@ -1501,6 +1501,9 @@ mod tests {
         assert_eq!(midnight.seconds_since_midnight(), 0);
 
         let end_of_day = TimeOfDay::new(23, 59, 59);
-        assert_eq!(end_of_day.seconds_since_midnight(), 23 * 3600 + 59 * 60 + 59);
+        assert_eq!(
+            end_of_day.seconds_since_midnight(),
+            23 * 3600 + 59 * 60 + 59
+        );
     }
 }

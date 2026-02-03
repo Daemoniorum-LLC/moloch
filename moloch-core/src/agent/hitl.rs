@@ -566,7 +566,10 @@ pub enum ApprovalStatus {
         escalation_level: u32,
     },
     /// Cancelled by requestor or system.
-    Cancelled { cancelled_by: CancellationActor, reason: String },
+    Cancelled {
+        cancelled_by: CancellationActor,
+        reason: String,
+    },
 }
 
 impl ApprovalStatus {
@@ -1230,11 +1233,8 @@ mod tests {
         // Wait a tiny bit to ensure expiry
         std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let response = ApprovalResponse::new(
-            req.id(),
-            test_approver(),
-            ApprovalDecision::approve(),
-        );
+        let response =
+            ApprovalResponse::new(req.id(), test_approver(), ApprovalDecision::approve());
 
         let result = req.apply_response(&response);
         assert!(result.is_err());
@@ -1283,11 +1283,8 @@ mod tests {
         );
 
         // Single rejection should reject the whole request
-        let response = ApprovalResponse::new(
-            req.id(),
-            approver1,
-            ApprovalDecision::reject("Not allowed"),
-        );
+        let response =
+            ApprovalResponse::new(req.id(), approver1, ApprovalDecision::reject("Not allowed"));
         req.apply_response(&response).unwrap();
         assert!(req.status().is_rejected());
     }
@@ -1308,7 +1305,8 @@ mod tests {
 
         // Response with wrong request ID
         let wrong_id = ApprovalRequestId::generate();
-        let response = ApprovalResponse::new(wrong_id, test_approver(), ApprovalDecision::approve());
+        let response =
+            ApprovalResponse::new(wrong_id, test_approver(), ApprovalDecision::approve());
 
         let result = req.apply_response(&response);
         assert!(result.is_err());
@@ -1328,8 +1326,7 @@ mod tests {
 
         // Response from non-approver
         let non_approver = PrincipalId::user("charlie").unwrap();
-        let response =
-            ApprovalResponse::new(req.id(), non_approver, ApprovalDecision::approve());
+        let response = ApprovalResponse::new(req.id(), non_approver, ApprovalDecision::approve());
 
         let result = req.apply_response(&response);
         assert!(result.is_err());
@@ -1344,7 +1341,9 @@ mod tests {
             .sign(&approver_key);
 
         // Verify with correct key
-        assert!(response.verify_signature(&approver_key.public_key()).is_ok());
+        assert!(response
+            .verify_signature(&approver_key.public_key())
+            .is_ok());
 
         // Verify with wrong key should fail
         let wrong_key = SecretKey::generate();
@@ -1414,7 +1413,8 @@ mod tests {
         let supervisor = PrincipalId::user("supervisor").unwrap();
 
         let policy = ApprovalPolicy::single_approver().with_escalation(
-            EscalationPolicy::new(Duration::from_secs(60), vec![supervisor]).with_max_escalations(2),
+            EscalationPolicy::new(Duration::from_secs(60), vec![supervisor])
+                .with_max_escalations(2),
         );
 
         let mut req = ApprovalRequest::new(
@@ -1457,7 +1457,9 @@ mod tests {
     #[test]
     fn approval_decision_is_approval() {
         assert!(ApprovalDecision::approve().is_approval());
-        assert!(ApprovalDecision::approve_with_modifications(ActionModifications::new()).is_approval());
+        assert!(
+            ApprovalDecision::approve_with_modifications(ActionModifications::new()).is_approval()
+        );
         assert!(!ApprovalDecision::reject("no").is_approval());
     }
 

@@ -471,7 +471,9 @@ impl CoordinatedActionSpec {
 
     /// Get tasks for a participant.
     pub fn tasks_for(&self, agent: &PublicKey) -> Option<&[Task]> {
-        self.tasks.get(&hex::encode(agent.as_bytes())).map(|v| v.as_slice())
+        self.tasks
+            .get(&hex::encode(agent.as_bytes()))
+            .map(|v| v.as_slice())
     }
 
     /// Get all tasks.
@@ -628,7 +630,11 @@ pub struct CoordinationResult {
 
 impl CoordinationResult {
     /// Create a new coordination result.
-    pub fn new(outcome: ActionOutcome, output: serde_json::Value, metrics: CoordinationMetrics) -> Self {
+    pub fn new(
+        outcome: ActionOutcome,
+        output: serde_json::Value,
+        metrics: CoordinationMetrics,
+    ) -> Self {
         Self {
             outcome,
             agent_outcomes: HashMap::new(),
@@ -1161,13 +1167,27 @@ impl CoordinationEvent {
     pub fn coordination_id(&self) -> CoordinationId {
         match self {
             CoordinationEvent::Started { action } => action.id(),
-            CoordinationEvent::ParticipantJoined { coordination_id, .. } => *coordination_id,
-            CoordinationEvent::TaskAssigned { coordination_id, .. } => *coordination_id,
-            CoordinationEvent::TaskCompleted { coordination_id, .. } => *coordination_id,
-            CoordinationEvent::Message { coordination_id, .. } => *coordination_id,
-            CoordinationEvent::Disagreement { coordination_id, .. } => *coordination_id,
-            CoordinationEvent::Completed { coordination_id, .. } => *coordination_id,
-            CoordinationEvent::Failed { coordination_id, .. } => *coordination_id,
+            CoordinationEvent::ParticipantJoined {
+                coordination_id, ..
+            } => *coordination_id,
+            CoordinationEvent::TaskAssigned {
+                coordination_id, ..
+            } => *coordination_id,
+            CoordinationEvent::TaskCompleted {
+                coordination_id, ..
+            } => *coordination_id,
+            CoordinationEvent::Message {
+                coordination_id, ..
+            } => *coordination_id,
+            CoordinationEvent::Disagreement {
+                coordination_id, ..
+            } => *coordination_id,
+            CoordinationEvent::Completed {
+                coordination_id, ..
+            } => *coordination_id,
+            CoordinationEvent::Failed {
+                coordination_id, ..
+            } => *coordination_id,
         }
     }
 }
@@ -1175,9 +1195,9 @@ impl CoordinationEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypto::SecretKey;
     use crate::agent::principal::PrincipalId;
     use crate::agent::session::SessionId;
+    use crate::crypto::SecretKey;
     use crate::event::EventId;
 
     fn test_key() -> SecretKey {
@@ -1510,8 +1530,14 @@ mod tests {
             serde_json::json!({"combined": true}),
             CoordinationMetrics::new(5000),
         )
-        .with_agent_outcome(&key1.public_key(), ActionOutcome::success(serde_json::json!({})))
-        .with_agent_outcome(&key2.public_key(), ActionOutcome::success(serde_json::json!({})));
+        .with_agent_outcome(
+            &key1.public_key(),
+            ActionOutcome::success(serde_json::json!({})),
+        )
+        .with_agent_outcome(
+            &key2.public_key(),
+            ActionOutcome::success(serde_json::json!({})),
+        );
 
         assert!(result.is_success());
         assert!(result.agent_outcome(&key1.public_key()).is_some());

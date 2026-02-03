@@ -276,9 +276,9 @@ impl SessionBuilder {
             .principal
             .ok_or_else(|| Error::invalid_input("Session requires a principal"))?;
 
-        let started_at = self.started_at.unwrap_or_else(|| {
-            chrono::Utc::now().timestamp_millis()
-        });
+        let started_at = self
+            .started_at
+            .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
 
         Ok(Session {
             id: self.id.unwrap_or_else(SessionId::random),

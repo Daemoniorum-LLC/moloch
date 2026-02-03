@@ -268,10 +268,10 @@ impl EmergencyPriority {
     /// Get the expected response time in milliseconds.
     pub fn expected_response_ms(&self) -> i64 {
         match self {
-            EmergencyPriority::Low => 60 * 60 * 1000,     // 1 hour
-            EmergencyPriority::Medium => 5 * 60 * 1000,  // 5 minutes
-            EmergencyPriority::High => 60 * 1000,        // 1 minute
-            EmergencyPriority::Critical => 10 * 1000,    // 10 seconds
+            EmergencyPriority::Low => 60 * 60 * 1000,   // 1 hour
+            EmergencyPriority::Medium => 5 * 60 * 1000, // 5 minutes
+            EmergencyPriority::High => 60 * 1000,       // 1 minute
+            EmergencyPriority::Critical => 10 * 1000,   // 10 seconds
         }
     }
 }
@@ -464,11 +464,7 @@ pub struct EmergencyResolution {
 
 impl EmergencyResolution {
     /// Create a new resolution.
-    pub fn new(
-        emergency_event_id: EventId,
-        resolution: Resolution,
-        resolver: PrincipalId,
-    ) -> Self {
+    pub fn new(emergency_event_id: EventId, resolution: Resolution, resolver: PrincipalId) -> Self {
         Self {
             emergency_event_id,
             resolution,
@@ -844,8 +840,7 @@ mod tests {
 
     #[test]
     fn terminate_session_action() {
-        let action =
-            EmergencyAction::terminate_session(test_session_id(), "Session compromised");
+        let action = EmergencyAction::terminate_session(test_session_id(), "Session compromised");
         assert!(action.is_permanent());
     }
 
@@ -900,10 +895,8 @@ mod tests {
 
     #[test]
     fn suspension_scope_capabilities() {
-        let scope = SuspensionScope::capabilities(vec![
-            CapabilityKind::Read,
-            CapabilityKind::Write,
-        ]);
+        let scope =
+            SuspensionScope::capabilities(vec![CapabilityKind::Read, CapabilityKind::Write]);
         assert!(scope.includes_capability(&CapabilityKind::Read));
         assert!(!scope.includes_capability(&CapabilityKind::Execute));
         assert!(!scope.includes_resource(&test_resource_id()));
@@ -928,9 +921,18 @@ mod tests {
 
     #[test]
     fn priority_response_times() {
-        assert!(EmergencyPriority::Critical.expected_response_ms() < EmergencyPriority::High.expected_response_ms());
-        assert!(EmergencyPriority::High.expected_response_ms() < EmergencyPriority::Medium.expected_response_ms());
-        assert!(EmergencyPriority::Medium.expected_response_ms() < EmergencyPriority::Low.expected_response_ms());
+        assert!(
+            EmergencyPriority::Critical.expected_response_ms()
+                < EmergencyPriority::High.expected_response_ms()
+        );
+        assert!(
+            EmergencyPriority::High.expected_response_ms()
+                < EmergencyPriority::Medium.expected_response_ms()
+        );
+        assert!(
+            EmergencyPriority::Medium.expected_response_ms()
+                < EmergencyPriority::Low.expected_response_ms()
+        );
     }
 
     // === EmergencyEvent Tests ===

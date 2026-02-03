@@ -86,15 +86,15 @@ pub use agent::{
     CoordinatedActionSpec, CoordinationEvent, CoordinationId, CoordinationMetrics,
     CoordinationProtocol, CoordinationResult, CoordinationStatus, CoordinationType, Cost,
     CrossSessionReference, DayOfWeek, Decision, DenialReason, DisputeStatus, DurationMs,
-    EmergencyAction, EmergencyEvent, EmergencyEventBuilder, EmergencyPriority,
-    EmergencyResolution, EmergencyTrigger, EscalationPolicy, Evidence, Factor, FailureHandling,
-    Goal, GoalSource, IdempotencyKey, IdempotencyRecord, ImpactAssessment, OutcomeAttestation,
+    EmergencyAction, EmergencyEvent, EmergencyEventBuilder, EmergencyPriority, EmergencyResolution,
+    EmergencyTrigger, EscalationPolicy, Evidence, Factor, FailureHandling, Goal, GoalSource,
+    IdempotencyKey, IdempotencyRecord, ImpactAssessment, OutcomeAttestation,
     OutcomeAttestationBuilder, OutcomeDispute, Participant, ParticipantRole, PostMortem,
     PrincipalId, PrincipalKind, Priority, ProposedAction, ProposedActionBuilder, RateLimit,
     ReasoningStep, ReasoningTrace, ReasoningTraceBuilder, RequiredCapability, Resolution,
     ResourceScope, Responsibility, RuntimeAttestation, Session, SessionBuilder, SessionEndReason,
-    SessionId, SessionSummary, Severity, StepAction, SuspensionScope, Task, TaskDependency,
-    TaskId, TeeQuote, TeeType, TimeOfDay, TimeWindow, ToolAttestation, TraceId,
+    SessionId, SessionSummary, Severity, StepAction, SuspensionScope, Task, TaskDependency, TaskId,
+    TeeQuote, TeeType, TimeOfDay, TimeWindow, ToolAttestation, TraceId,
 };
 
 /// Batch-verify the signatures of multiple events.

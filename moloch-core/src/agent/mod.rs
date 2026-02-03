@@ -8,7 +8,7 @@
 //! - [`causality`] - Causal chain linking events to their origin
 //! - [`attestation`] - Agent identity attestation
 //! - [`capability`] - Capability-based authorization
-//! - [`approval`] - Human-in-the-loop approval protocol
+//! - [`hitl`] - Human-in-the-loop approval protocol
 //! - [`reasoning`] - Reasoning traces for agent decisions
 //! - [`outcome`] - Outcome verification and attestation
 //! - [`emergency`] - Emergency control actions
@@ -49,17 +49,17 @@ pub use emergency::{
 };
 pub use hitl::{
     ActionModifications, ApprovalContext, ApprovalDecision, ApprovalPolicy, ApprovalRequest,
-    ApprovalRequestId, ApprovalResponse, ApprovalStatus, CancellationActor, Cost,
-    EscalationPolicy, ImpactAssessment, ProposedAction, ProposedActionBuilder, Severity,
+    ApprovalRequestId, ApprovalResponse, ApprovalStatus, CancellationActor, Cost, EscalationPolicy,
+    ImpactAssessment, ProposedAction, ProposedActionBuilder, Severity,
+};
+pub use outcome::{
+    ActionOutcome, Attestor, DisputeStatus, Evidence, IdempotencyKey, IdempotencyRecord,
+    OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute,
 };
 pub use principal::{PrincipalId, PrincipalKind};
 pub use reasoning::{
     Alternative, Confidence, Decision, Factor, Goal, GoalSource, Priority, ReasoningStep,
     ReasoningTrace, ReasoningTraceBuilder, StepAction, TraceId,
-};
-pub use outcome::{
-    ActionOutcome, Attestor, DisputeStatus, Evidence, IdempotencyKey, IdempotencyRecord,
-    OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute,
 };
 pub use registry::AttestationRegistry;
 pub use session::{Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary};

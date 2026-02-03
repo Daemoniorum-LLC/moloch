@@ -267,12 +267,18 @@ impl ActionOutcome {
     /// Create a success outcome.
     pub fn success(result: serde_json::Value) -> Self {
         let result_hash = hash(result.to_string().as_bytes());
-        Self::Success { result, result_hash }
+        Self::Success {
+            result,
+            result_hash,
+        }
     }
 
     /// Create a success outcome with explicit hash.
     pub fn success_with_hash(result: serde_json::Value, result_hash: Hash) -> Self {
-        Self::Success { result, result_hash }
+        Self::Success {
+            result,
+            result_hash,
+        }
     }
 
     /// Create a partial success outcome.
@@ -312,7 +318,9 @@ impl ActionOutcome {
 
     /// Create a pending outcome.
     pub fn pending(expected_completion: Option<i64>) -> Self {
-        Self::Pending { expected_completion }
+        Self::Pending {
+            expected_completion,
+        }
     }
 
     /// Create a rolled back outcome.
@@ -797,7 +805,10 @@ pub enum DisputeStatus {
 impl DisputeStatus {
     /// Check if the dispute is still pending.
     pub fn is_pending(&self) -> bool {
-        matches!(self, DisputeStatus::Pending | DisputeStatus::UnderReview { .. })
+        matches!(
+            self,
+            DisputeStatus::Pending | DisputeStatus::UnderReview { .. }
+        )
     }
 
     /// Check if the dispute is resolved.
@@ -1060,7 +1071,10 @@ mod tests {
             .action_event_id(test_event_id())
             .outcome(ActionOutcome::success(serde_json::json!({})))
             .attestor(Attestor::self_attestation(key.public_key()))
-            .evidence(Evidence::third_party_attestation(key.public_key(), vec![1, 2, 3]))
+            .evidence(Evidence::third_party_attestation(
+                key.public_key(),
+                vec![1, 2, 3],
+            ))
             .sign(&key)
             .unwrap();
         assert!(attestation.is_evidence_sufficient(Severity::Critical));
@@ -1153,7 +1167,10 @@ mod tests {
             Attestor::self_attestation(key.public_key()),
             "Incorrect outcome",
         )
-        .with_evidence(Evidence::log_entries("server.log", vec!["ERROR: Failed".to_string()]));
+        .with_evidence(Evidence::log_entries(
+            "server.log",
+            vec!["ERROR: Failed".to_string()],
+        ));
 
         assert_eq!(dispute.counter_evidence().len(), 1);
     }

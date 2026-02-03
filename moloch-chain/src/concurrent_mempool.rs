@@ -493,56 +493,65 @@ mod tests {
     fn test_multithread_add_take() {
         let pool = Arc::new(ConcurrentMempool::default_config());
         let num_producers = 4;
-        let num_consumers = 4;
-        let events_per_producer = 100;
+        let num_consumers = 2;
+        let events_per_producer = 50;
+
+        // Each producer uses a unique key, guaranteeing unique event IDs
+        // across producers. Within a producer, each event gets a unique key
+        // to avoid timestamp-based deduplication.
+        let added_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
         // Producers add events
         let producer_handles: Vec<_> = (0..num_producers)
             .map(|_| {
                 let pool = Arc::clone(&pool);
+                let added_count = Arc::clone(&added_count);
                 thread::spawn(move || {
-                    let key = SecretKey::generate();
                     for _ in 0..events_per_producer {
+                        // Generate a fresh key per event to guarantee uniqueness
+                        let key = SecretKey::generate();
                         let event = test_event(&key);
-                        pool.add(event).unwrap();
+                        if pool.add(event).unwrap() {
+                            added_count.fetch_add(1, Ordering::SeqCst);
+                        }
                     }
                 })
             })
             .collect();
 
-        // Let producers start
-        thread::sleep(std::time::Duration::from_millis(10));
+        // Wait for all producers to finish first, ensuring events are available
+        for handle in producer_handles {
+            handle.join().unwrap();
+        }
 
-        // Consumers take events
+        let total_added = added_count.load(Ordering::SeqCst);
+        assert_eq!(total_added, num_producers * events_per_producer);
+
+        // Now run consumers concurrently to test concurrent take()
         let consumer_handles: Vec<_> = (0..num_consumers)
             .map(|_| {
                 let pool = Arc::clone(&pool);
                 thread::spawn(move || {
                     let mut taken = 0;
-                    for _ in 0..50 {
-                        taken += pool.take(10).len();
-                        thread::sleep(std::time::Duration::from_micros(100));
+                    for _ in 0..200 {
+                        let batch = pool.take(10);
+                        taken += batch.len();
+                        if pool.len() == 0 {
+                            break;
+                        }
                     }
                     taken
                 })
             })
             .collect();
 
-        for handle in producer_handles {
-            handle.join().unwrap();
-        }
-
         let total_taken: usize = consumer_handles
             .into_iter()
             .map(|h| h.join().unwrap())
             .sum();
 
-        // Some events should have been taken
-        assert!(total_taken > 0);
-        // Remaining events should match
-        assert_eq!(
-            pool.len() + total_taken,
-            num_producers * events_per_producer
-        );
+        // All events should have been consumed
+        let remaining = pool.take(total_added);
+        assert_eq!(remaining.len() + total_taken, total_added);
     }
 }

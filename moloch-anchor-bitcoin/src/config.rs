@@ -48,7 +48,6 @@ impl Network {
     }
 }
 
-
 /// Configuration for the Bitcoin provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BitcoinConfig {

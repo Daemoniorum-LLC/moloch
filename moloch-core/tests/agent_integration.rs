@@ -127,7 +127,11 @@ fn integration_complete_agent_action_flow() {
             serde_json::json!({"file_content": "test data"}),
         ))
         .attestor(Attestor::self_attestation(agent_key.public_key()))
-        .evidence(Evidence::data_hash(test_resource_id(), hash(b"test data"), 9))
+        .evidence(Evidence::data_hash(
+            test_resource_id(),
+            hash(b"test data"),
+            9,
+        ))
         .observed_now()
         .sign(&agent_key)
         .unwrap();

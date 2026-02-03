@@ -781,7 +781,9 @@ impl ReasoningTraceBuilder {
             .ok_or_else(|| Error::invalid_input("goal is required"))?;
 
         if self.steps.is_empty() {
-            return Err(Error::invalid_input("at least one reasoning step is required"));
+            return Err(Error::invalid_input(
+                "at least one reasoning step is required",
+            ));
         }
 
         let decision = self
@@ -860,7 +862,8 @@ mod tests {
 
     #[test]
     fn goal_with_priority() {
-        let goal = Goal::from_user("Urgent task", test_event_id()).with_priority(Priority::Critical);
+        let goal =
+            Goal::from_user("Urgent task", test_event_id()).with_priority(Priority::Critical);
         assert_eq!(goal.priority(), Priority::Critical);
     }
 
@@ -883,8 +886,7 @@ mod tests {
 
     #[test]
     fn reasoning_step_with_observation() {
-        let step = ReasoningStep::new(1, "Checking status")
-            .with_observation("Status is active");
+        let step = ReasoningStep::new(1, "Checking status").with_observation("Status is active");
         assert_eq!(step.observation(), Some("Status is active"));
     }
 
@@ -898,7 +900,10 @@ mod tests {
             "Task completed successfully",
         );
         assert_eq!(decision.action(), "Proceed with option A");
-        assert_eq!(decision.rationale(), "It has the highest success probability");
+        assert_eq!(
+            decision.rationale(),
+            "It has the highest success probability"
+        );
     }
 
     #[test]
@@ -1028,12 +1033,7 @@ mod tests {
                 "Task completed",
             ))
             .confidence(Confidence::high())
-            .alternative(Alternative::new(
-                "Approach B",
-                "Slower",
-                "Same result",
-                0.7,
-            ))
+            .alternative(Alternative::new("Approach B", "Slower", "Same result", 0.7))
             .factor(Factor::positive("Clear requirements", 0.9))
             .build()
             .unwrap();

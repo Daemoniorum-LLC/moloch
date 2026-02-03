@@ -62,11 +62,7 @@ impl CausalContext {
     /// Create a root context (depth 0) for a human-initiated event.
     ///
     /// This is the starting point of any causal chain.
-    pub fn root(
-        event_id: EventId,
-        session_id: SessionId,
-        principal: PrincipalId,
-    ) -> Self {
+    pub fn root(event_id: EventId, session_id: SessionId, principal: PrincipalId) -> Self {
         Self {
             parent_event_id: None,
             root_event_id: event_id,
@@ -491,11 +487,7 @@ mod tests {
 
     #[test]
     fn child_context_created_successfully() {
-        let root = CausalContext::root(
-            test_event_id(),
-            test_session_id(),
-            test_principal(),
-        );
+        let root = CausalContext::root(test_event_id(), test_session_id(), test_principal());
 
         let parent_id = test_event_id();
         let child = root.child(parent_id, 1).unwrap();
@@ -508,11 +500,7 @@ mod tests {
 
     #[test]
     fn child_sequence_must_exceed_parent() {
-        let root = CausalContext::root(
-            test_event_id(),
-            test_session_id(),
-            test_principal(),
-        );
+        let root = CausalContext::root(test_event_id(), test_session_id(), test_principal());
 
         // Same sequence should fail
         let result = root.child(test_event_id(), 0);
@@ -548,11 +536,7 @@ mod tests {
 
     #[test]
     fn validate_against_parent_checks_sequence() {
-        let parent = CausalContext::root(
-            test_event_id(),
-            test_session_id(),
-            test_principal(),
-        );
+        let parent = CausalContext::root(test_event_id(), test_session_id(), test_principal());
 
         let child = parent.child(test_event_id(), 1).unwrap();
 
@@ -575,11 +559,7 @@ mod tests {
 
     #[test]
     fn validate_against_parent_checks_depth() {
-        let parent = CausalContext::root(
-            test_event_id(),
-            test_session_id(),
-            test_principal(),
-        );
+        let parent = CausalContext::root(test_event_id(), test_session_id(), test_principal());
 
         // Correct child depth
         let valid_child = parent.child(test_event_id(), 1).unwrap();
@@ -630,11 +610,7 @@ mod tests {
 
     #[test]
     fn display_format_correct() {
-        let ctx = CausalContext::root(
-            test_event_id(),
-            test_session_id(),
-            test_principal(),
-        );
+        let ctx = CausalContext::root(test_event_id(), test_session_id(), test_principal());
 
         let display = format!("{}", ctx);
         assert!(display.contains("CausalContext"));

@@ -60,7 +60,6 @@ pub enum Permission {
     Admin,
 }
 
-
 /// An API key with metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiKey {
