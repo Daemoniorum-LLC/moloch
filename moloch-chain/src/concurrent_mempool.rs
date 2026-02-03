@@ -536,7 +536,7 @@ mod tests {
                     for _ in 0..200 {
                         let batch = pool.take(10);
                         taken += batch.len();
-                        if pool.len() == 0 {
+                        if pool.is_empty() {
                             break;
                         }
                     }
