@@ -86,10 +86,33 @@ impl OutcomeAttestation {
         data
     }
 
-    /// Verify the signature.
+    /// Verify the signature against an arbitrary public key.
+    ///
+    /// **Warning**: This does not check that `public_key` matches the embedded
+    /// [`Attestor`]. Prefer [`verify_against_attestor`](Self::verify_against_attestor)
+    /// which enforces signature-attestor binding.
     pub fn verify_signature(&self, public_key: &PublicKey) -> Result<()> {
         let message = self.canonical_bytes();
         public_key.verify(&message, &self.signature)
+    }
+
+    /// Verify the signature against the attestor's embedded public key.
+    ///
+    /// Unlike [`verify_signature`](Self::verify_signature) which accepts an arbitrary key,
+    /// this method extracts the expected key from the [`Attestor`] and verifies against it,
+    /// ensuring the signature is cryptographically bound to the claimed attestor identity.
+    ///
+    /// Returns an error if:
+    /// - The attestor type does not carry a public key (e.g., `HumanObserver`, `CryptographicProof`)
+    /// - The signature does not verify against the attestor's key
+    pub fn verify_against_attestor(&self) -> Result<()> {
+        let public_key = self.attestor.public_key().ok_or_else(|| {
+            Error::invalid_input(
+                "attestor type does not carry a public key; \
+                 use external verification for HumanObserver/CryptographicProof",
+            )
+        })?;
+        self.verify_signature(public_key)
     }
 
     /// Check if evidence is sufficient for the given severity per rule 8.3.3.
@@ -1088,6 +1111,113 @@ mod tests {
             .sign(&key)
             .unwrap();
         assert!(attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    // === verify_against_attestor Tests (Phase 1, Finding 1.1) ===
+
+    #[test]
+    fn verify_against_attestor_rejects_key_mismatch() {
+        // OutcomeAttestation signed by real_key but claiming attestor with fake_key
+        // must fail verify_against_attestor()
+        let real_key = test_key();
+        let fake_key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(fake_key.public_key())) // Claims fake
+            .observed_now()
+            .sign(&real_key) // Signed by real
+            .unwrap();
+
+        // Raw verify with real_key passes — this is the vulnerability
+        assert!(attestation.verify_signature(&real_key.public_key()).is_ok());
+
+        // verify_against_attestor must reject: attestor says fake_key, sig is real_key
+        assert!(attestation.verify_against_attestor().is_err());
+    }
+
+    #[test]
+    fn verify_against_attestor_accepts_matching_key() {
+        let key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .observed_now()
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.verify_against_attestor().is_ok());
+    }
+
+    #[test]
+    fn verify_against_attestor_for_human_observer_returns_error() {
+        // HumanObserver has no public key, so attestor-based verify
+        // must return an appropriate error (not silently pass)
+        let key = test_key();
+        let principal = PrincipalId::user("admin@example.com").unwrap();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::human_observer(principal))
+            .observed_now()
+            .sign(&key)
+            .unwrap();
+
+        let result = attestation.verify_against_attestor();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn verify_against_attestor_for_execution_system() {
+        let system_key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::execution_system(
+                "docker",
+                system_key.public_key(),
+            ))
+            .observed_now()
+            .sign(&system_key)
+            .unwrap();
+
+        assert!(attestation.verify_against_attestor().is_ok());
+    }
+
+    #[test]
+    fn verify_against_attestor_for_monitor() {
+        let monitor_key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::monitor("prometheus", monitor_key.public_key()))
+            .observed_now()
+            .sign(&monitor_key)
+            .unwrap();
+
+        assert!(attestation.verify_against_attestor().is_ok());
+    }
+
+    #[test]
+    fn verify_against_attestor_for_cryptographic_proof_returns_error() {
+        // CryptographicProof has no public key, similar to HumanObserver
+        let key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::cryptographic_proof("blockchain-anchor"))
+            .observed_now()
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.verify_against_attestor().is_err());
     }
 
     // === IdempotencyKey Tests ===

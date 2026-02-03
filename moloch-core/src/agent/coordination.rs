@@ -255,6 +255,26 @@ impl Participant {
         }
     }
 
+    /// Create a new participant with a commitment signature.
+    ///
+    /// This is the preferred constructor. The `commitment` should be a signature
+    /// over the [`CoordinatedActionSpec::canonical_bytes()`] using the agent's secret key,
+    /// per INV-COORD-2.
+    pub fn with_commitment(
+        agent: PublicKey,
+        role: ParticipantRole,
+        responsibility: Responsibility,
+        commitment: Sig,
+    ) -> Self {
+        Self {
+            agent,
+            role,
+            capabilities: Vec::new(),
+            responsibility,
+            commitment,
+        }
+    }
+
     /// Add capabilities.
     pub fn with_capabilities(mut self, capabilities: Vec<CapabilityId>) -> Self {
         self.capabilities = capabilities;
@@ -289,6 +309,18 @@ impl Participant {
     /// Check if this participant is the coordinator.
     pub fn is_coordinator(&self) -> bool {
         matches!(self.role, ParticipantRole::Coordinator)
+    }
+
+    /// Verify that this participant's commitment is a valid signature
+    /// over the given action specification, using the participant's own agent key.
+    ///
+    /// Enforces INV-COORD-2: every participant's commitment must cryptographically
+    /// verify against the coordination's action specification.
+    pub fn verify_commitment(&self, spec: &CoordinatedActionSpec) -> Result<()> {
+        let message = spec.canonical_bytes();
+        self.agent.verify(&message, &self.commitment).map_err(|_| {
+            Error::invalid_input("participant commitment does not verify against spec")
+        })
     }
 }
 
@@ -496,10 +528,14 @@ impl CoordinatedActionSpec {
         &self.failure_handling
     }
 
+    /// Compute canonical bytes for commitment signing and verification.
+    pub fn canonical_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(self).unwrap_or_default()
+    }
+
     /// Compute a hash of this spec for signing.
     pub fn hash(&self) -> Hash {
-        let json = serde_json::to_vec(self).unwrap_or_default();
-        hash(&json)
+        hash(&self.canonical_bytes())
     }
 }
 
@@ -858,6 +894,19 @@ impl CoordinatedAction {
         Ok(())
     }
 
+    /// Validate that all participant commitments verify against the action spec per INV-COORD-2.
+    pub fn validate_commitments(&self) -> Result<()> {
+        for (i, participant) in self.participants.iter().enumerate() {
+            participant.verify_commitment(&self.action).map_err(|_| {
+                Error::invalid_input(format!(
+                    "participant {} commitment does not verify against action spec",
+                    i
+                ))
+            })?;
+        }
+        Ok(())
+    }
+
     /// Validate that shared responsibility sums to 1.0 per rule 10.3.3.
     pub fn validate_responsibility(&self) -> Result<()> {
         let shared_sum: f64 = self
@@ -999,6 +1048,16 @@ impl CoordinatedActionBuilder {
         coordination.validate_coordinator()?;
         coordination.validate_responsibility()?;
 
+        Ok(coordination)
+    }
+
+    /// Build with full commitment verification per INV-COORD-2.
+    ///
+    /// Like [`build`](Self::build), but additionally validates that every participant's
+    /// commitment signature verifies against the action specification.
+    pub fn build_verified(self) -> Result<CoordinatedAction> {
+        let coordination = self.build()?;
+        coordination.validate_commitments()?;
         Ok(coordination)
     }
 }
@@ -1455,6 +1514,147 @@ mod tests {
             .protocol(CoordinationProtocol::TwoPhaseCommit)
             .causal_context(test_causal_context())
             .build();
+
+        assert!(result.is_ok());
+    }
+
+    // === Commitment Verification Tests (Phase 1, Finding 1.2) ===
+
+    #[test]
+    fn participant_commitment_verifies_against_spec() {
+        let key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy-service");
+
+        // Create participant with proper commitment (signature over spec)
+        let spec_bytes = spec.canonical_bytes();
+        let commitment = key.sign(&spec_bytes);
+        let participant = Participant::with_commitment(
+            key.public_key(),
+            ParticipantRole::Coordinator,
+            Responsibility::individual(),
+            commitment,
+        );
+
+        assert!(participant.verify_commitment(&spec).is_ok());
+    }
+
+    #[test]
+    fn participant_commitment_wrong_spec_rejected() {
+        let key = test_key();
+        let spec_a = CoordinatedActionSpec::new("deploy-service");
+        let spec_b = CoordinatedActionSpec::new("rollback-service");
+
+        let commitment = key.sign(&spec_a.canonical_bytes());
+        let participant = Participant::with_commitment(
+            key.public_key(),
+            ParticipantRole::Peer,
+            Responsibility::individual(),
+            commitment,
+        );
+
+        // Commitment was for spec_a, verifying against spec_b must fail
+        assert!(participant.verify_commitment(&spec_b).is_err());
+    }
+
+    #[test]
+    fn participant_commitment_wrong_key_rejected() {
+        let real_key = test_key();
+        let wrong_key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy-service");
+
+        let commitment = real_key.sign(&spec.canonical_bytes());
+        let participant = Participant::with_commitment(
+            wrong_key.public_key(), // Claims wrong_key identity
+            ParticipantRole::Peer,
+            Responsibility::individual(),
+            commitment, // Signed by real_key
+        );
+
+        // Agent key doesn't match the commitment signer
+        assert!(participant.verify_commitment(&spec).is_err());
+    }
+
+    #[test]
+    fn participant_empty_commitment_rejected() {
+        let key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy-service");
+
+        // Using Sig::empty() as commitment should fail verification
+        let participant = Participant::new(
+            key.public_key(),
+            ParticipantRole::Coordinator,
+            Responsibility::individual(),
+            Sig::empty(),
+        );
+
+        assert!(participant.verify_commitment(&spec).is_err());
+    }
+
+    #[test]
+    fn coordinated_action_build_verified_validates_commitments() {
+        let coord_key = test_key();
+        let peer_key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy");
+
+        let coord_commitment = coord_key.sign(&spec.canonical_bytes());
+        let p1 = Participant::with_commitment(
+            coord_key.public_key(),
+            ParticipantRole::Coordinator,
+            Responsibility::individual(),
+            coord_commitment,
+        );
+
+        // Peer has empty (invalid) commitment
+        let p2 = Participant::new(
+            peer_key.public_key(),
+            ParticipantRole::Peer,
+            Responsibility::individual(),
+            Sig::empty(),
+        );
+
+        let result = CoordinatedAction::builder()
+            .coordination_type(CoordinationType::Supervised)
+            .participant(p1)
+            .participant(p2)
+            .action(spec)
+            .protocol(CoordinationProtocol::TwoPhaseCommit)
+            .causal_context(test_causal_context())
+            .build_verified();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn coordinated_action_build_verified_succeeds_with_valid_commitments() {
+        let coord_key = test_key();
+        let peer_key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy");
+
+        let coord_commitment = coord_key.sign(&spec.canonical_bytes());
+        let peer_commitment = peer_key.sign(&spec.canonical_bytes());
+
+        let p1 = Participant::with_commitment(
+            coord_key.public_key(),
+            ParticipantRole::Coordinator,
+            Responsibility::individual(),
+            coord_commitment,
+        );
+
+        let p2 = Participant::with_commitment(
+            peer_key.public_key(),
+            ParticipantRole::Peer,
+            Responsibility::individual(),
+            peer_commitment,
+        );
+
+        let result = CoordinatedAction::builder()
+            .coordination_type(CoordinationType::Parallel)
+            .participant(p1)
+            .participant(p2)
+            .action(spec)
+            .protocol(CoordinationProtocol::TwoPhaseCommit)
+            .causal_context(test_causal_context())
+            .build_verified();
 
         assert!(result.is_ok());
     }
