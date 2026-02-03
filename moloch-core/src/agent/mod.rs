@@ -13,6 +13,7 @@
 //! - [`outcome`] - Outcome verification and attestation
 //! - [`emergency`] - Emergency control actions
 //! - [`coordination`] - Multi-agent coordination
+//! - [`timestamp`] - Type-safe millisecond timestamps
 
 pub mod attestation;
 pub mod capability;
@@ -25,6 +26,7 @@ pub mod principal;
 pub mod reasoning;
 pub mod registry;
 pub mod session;
+pub mod timestamp;
 
 // Re-exports
 pub use attestation::{
@@ -63,3 +65,4 @@ pub use reasoning::{
 };
 pub use registry::AttestationRegistry;
 pub use session::{Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary};
+pub use timestamp::Timestamp;

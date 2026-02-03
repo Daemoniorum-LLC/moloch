@@ -193,7 +193,7 @@ fn integration_hitl_approval_flow() {
     // 4. Simulate approval response
     let response = ApprovalResponse::new(request.id(), principal, ApprovalDecision::Approve);
 
-    assert!(matches!(response.decision, ApprovalDecision::Approve));
+    assert!(response.decision().is_approval());
 }
 
 // === Scenario 3: Multi-Agent Coordination ===
