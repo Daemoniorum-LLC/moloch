@@ -85,7 +85,7 @@ where
     }
 
     /// Run the property test.
-    pub fn run(mut self) -> PropertyResult {
+    pub fn run(self) -> PropertyResult {
         for (i, input) in self.generator.take(self.max_iterations).enumerate() {
             if !self.property.check(&input) {
                 return PropertyResult::Failed {

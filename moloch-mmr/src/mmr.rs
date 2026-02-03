@@ -107,9 +107,10 @@ impl<S: MmrStore> Mmr<S> {
         let positions = peak_positions(self.store.size());
         let mut peaks = Vec::with_capacity(positions.len());
         for pos in positions {
-            let hash = self.store.get(pos)?.ok_or_else(|| {
-                Error::internal(format!("missing peak at {}", pos))
-            })?;
+            let hash = self
+                .store
+                .get(pos)?
+                .ok_or_else(|| Error::internal(format!("missing peak at {}", pos)))?;
             peaks.push(hash);
         }
         Ok(peaks)
@@ -124,7 +125,10 @@ impl<S: MmrStore> Mmr<S> {
     pub fn proof(&self, pos: u64) -> Result<MmrProof> {
         let size = self.store.size();
         if pos >= size {
-            return Err(Error::not_found(format!("position {} >= size {}", pos, size)));
+            return Err(Error::not_found(format!(
+                "position {} >= size {}",
+                pos, size
+            )));
         }
 
         let height = pos_height(pos);
@@ -132,9 +136,10 @@ impl<S: MmrStore> Mmr<S> {
             return Err(Error::invalid_proof(format!("{} is not a leaf", pos)));
         }
 
-        let leaf = self.store.get(pos)?.ok_or_else(|| {
-            Error::not_found(format!("no node at {}", pos))
-        })?;
+        let leaf = self
+            .store
+            .get(pos)?
+            .ok_or_else(|| Error::not_found(format!("no node at {}", pos)))?;
 
         let mut siblings = Vec::new();
         let mut current_pos = pos;
@@ -161,15 +166,16 @@ impl<S: MmrStore> Mmr<S> {
 
             // Check for left sibling
             if let Some(sib_pos) = left_sibling(current_pos, current_height) {
-                let sib_hash = self.store.get(sib_pos)?.ok_or_else(|| {
-                    Error::internal(format!("missing sibling at {}", sib_pos))
-                })?;
+                let sib_hash = self
+                    .store
+                    .get(sib_pos)?
+                    .ok_or_else(|| Error::internal(format!("missing sibling at {}", sib_pos)))?;
                 siblings.push(ProofNode {
                     hash: sib_hash,
                     position: Position::Left,
                 });
                 // Parent is at current_pos + 1
-                current_pos = current_pos + 1;
+                current_pos += 1;
                 current_height += 1;
                 continue;
             }
@@ -268,10 +274,7 @@ impl<S: MmrStore> Mmr<S> {
         }
 
         // Parallel proof generation for larger batches
-        positions
-            .par_iter()
-            .map(|&pos| self.proof(pos))
-            .collect()
+        positions.par_iter().map(|&pos| self.proof(pos)).collect()
     }
 
     /// Verify multiple proofs in parallel.
@@ -303,10 +306,8 @@ impl<S: MmrStore> Mmr<S> {
         }
 
         // Parallel verification for larger batches
-        let results: Result<Vec<bool>> = proofs
-            .par_iter()
-            .map(|proof| self.verify(proof))
-            .collect();
+        let results: Result<Vec<bool>> =
+            proofs.par_iter().map(|proof| self.verify(proof)).collect();
 
         results.map(|v| v.into_iter().all(|b| b))
     }

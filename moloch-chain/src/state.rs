@@ -47,7 +47,7 @@ impl Default for ChainConfig {
             chain_id: "moloch-mainnet".into(),
             max_events_per_block: 10_000,
             max_block_size: 10 * 1024 * 1024, // 10MB
-            block_time_ms: 1000,               // 1 second
+            block_time_ms: 1000,              // 1 second
             min_validators: 1,
         }
     }
@@ -207,9 +207,9 @@ impl<S: ChainStore> ChainState<S> {
 
         // Validate sealer is a known validator
         if !self.validators.contains(&block.header.sealer) {
-            return Err(ChainError::UnknownValidator(
-                hex::encode(block.header.sealer.as_pubkey().as_bytes()),
-            ));
+            return Err(ChainError::UnknownValidator(hex::encode(
+                block.header.sealer.as_pubkey().as_bytes(),
+            )));
         }
 
         // Validate block size limits
@@ -217,13 +217,18 @@ impl<S: ChainStore> ChainState<S> {
 
         // Validate block signature and structure
         let parent_header = self.head.as_ref();
-        block.validate(parent_header).map_err(|e| ChainError::BlockValidation(e.to_string()))?;
+        block
+            .validate(parent_header)
+            .map_err(|e| ChainError::BlockValidation(e.to_string()))?;
 
         self.apply_block_internal(block)
     }
 
     /// Internal block application (after validation).
-    fn apply_block_internal(&mut self, block: Block) -> std::result::Result<ApplyResult, ChainError> {
+    fn apply_block_internal(
+        &mut self,
+        block: Block,
+    ) -> std::result::Result<ApplyResult, ChainError> {
         let height = block.header.height;
         let event_count = block.events.len();
         let block_hash = block.hash();
@@ -460,7 +465,13 @@ mod tests {
             .seal(&key);
 
         let err = chain.apply_block(bad_block).unwrap_err();
-        assert!(matches!(err, ChainError::HeightMismatch { expected: 1, got: 0 }));
+        assert!(matches!(
+            err,
+            ChainError::HeightMismatch {
+                expected: 1,
+                got: 0
+            }
+        ));
     }
 
     #[test]
@@ -494,7 +505,10 @@ mod tests {
 
         let err = chain.apply_block(bad_block).unwrap_err();
         // Will fail validation since parent doesn't match (height is correct but hash differs)
-        assert!(matches!(err, ChainError::InvalidParent { .. } | ChainError::BlockValidation(_)));
+        assert!(matches!(
+            err,
+            ChainError::InvalidParent { .. } | ChainError::BlockValidation(_)
+        ));
     }
 
     #[test]

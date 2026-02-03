@@ -470,10 +470,18 @@ impl AuditEventBuilder {
 
     /// Build and sign the event.
     pub fn sign(self, key: &crate::crypto::SecretKey) -> Result<AuditEvent> {
-        let event_time = self.event_time.ok_or_else(|| Error::invalid_event("missing event_time"))?;
-        let event_type = self.event_type.ok_or_else(|| Error::invalid_event("missing event_type"))?;
-        let actor = self.actor.ok_or_else(|| Error::invalid_event("missing actor"))?;
-        let resource = self.resource.ok_or_else(|| Error::invalid_event("missing resource"))?;
+        let event_time = self
+            .event_time
+            .ok_or_else(|| Error::invalid_event("missing event_time"))?;
+        let event_type = self
+            .event_type
+            .ok_or_else(|| Error::invalid_event("missing event_type"))?;
+        let actor = self
+            .actor
+            .ok_or_else(|| Error::invalid_event("missing actor"))?;
+        let resource = self
+            .resource
+            .ok_or_else(|| Error::invalid_event("missing resource"))?;
         let outcome = self.outcome.unwrap_or(Outcome::Success);
 
         // Create event without attestation first to get canonical bytes
@@ -656,7 +664,10 @@ mod tests {
 
     #[test]
     fn test_event_type_bincode() {
-        let et = EventType::Push { force: true, commits: 5 };
+        let et = EventType::Push {
+            force: true,
+            commits: 5,
+        };
         let bytes = bincode::serialize(&et).expect("serialize");
         println!("EventType size: {} bytes", bytes.len());
         let restored: EventType = bincode::deserialize(&bytes).expect("deserialize");
@@ -683,8 +694,8 @@ mod tests {
 
     #[test]
     fn test_minimal_struct_bincode() {
-        use serde::{Deserialize, Serialize};
         use crate::crypto::Sig;
+        use serde::{Deserialize, Serialize};
 
         // Test struct with Sig inside
         #[derive(Serialize, Deserialize, Debug)]
@@ -734,7 +745,10 @@ mod tests {
 
         let t = TestEvent {
             event_time: Utc::now(),
-            event_type: EventType::Push { force: false, commits: 1 },
+            event_type: EventType::Push {
+                force: false,
+                commits: 1,
+            },
             actor: ActorId::new(key.public_key(), ActorKind::User),
             resource: ResourceId::new(ResourceKind::Repository, "myrepo"),
             outcome: Outcome::Success,

@@ -60,9 +60,7 @@ impl TrustedHeader {
         let valid_sigs = self
             .signatures
             .iter()
-            .filter(|(pk, sig)| {
-                validators.contains(pk) && self.verify_signature(pk, sig)
-            })
+            .filter(|(pk, sig)| validators.contains(pk) && self.verify_signature(pk, sig))
             .count();
 
         if valid_sigs >= threshold {
@@ -75,10 +73,10 @@ impl TrustedHeader {
         }
     }
 
-    fn verify_signature(&self, _pk: &PublicKey, _sig: &moloch_core::Sig) -> bool {
-        // TODO: Implement actual signature verification
-        // For now, assume all signatures are valid
-        true
+    /// Verify a signature against this header's hash.
+    fn verify_signature(&self, pk: &PublicKey, sig: &moloch_core::Sig) -> bool {
+        let message = self.header.hash();
+        pk.verify(message.as_hash().as_bytes(), sig).is_ok()
     }
 
     /// Encoded size in bytes (for bandwidth estimation).
@@ -239,6 +237,24 @@ impl HeaderChain {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
+    use moloch_core::block::SealerId;
+    use moloch_core::crypto::SecretKey;
+
+    fn create_test_header(height: u64) -> BlockHeader {
+        let secret = SecretKey::generate();
+        let sealer = SealerId::new(secret.public_key());
+        BlockHeader {
+            height,
+            parent: BlockHash(Hash::ZERO),
+            events_root: Hash::ZERO,
+            events_count: 0,
+            mmr_root: Hash::ZERO,
+            timestamp: Utc::now(),
+            sealer,
+            seal: secret.sign(&[0u8; 32]),
+        }
+    }
 
     #[test]
     fn test_header_store_basic() {
@@ -255,5 +271,94 @@ mod tests {
         let sig_count = 0;
         let estimated_size = 150 + sig_count * 96 + 32;
         assert!(estimated_size < 250);
+    }
+
+    // ===== TDD Tests for Signature Verification =====
+
+    #[test]
+    fn test_verify_signature_valid() {
+        let secret = SecretKey::generate();
+        let public = secret.public_key();
+
+        let header = create_test_header(1);
+        let message = header.hash();
+        let signature = secret.sign(message.as_hash().as_bytes());
+
+        let trusted = TrustedHeader::new(header, vec![(public.clone(), signature)], Hash::ZERO);
+
+        // Should verify successfully
+        assert!(trusted.verify_signature(&public, &trusted.signatures[0].1));
+    }
+
+    #[test]
+    fn test_verify_signature_invalid_wrong_key() {
+        let secret1 = SecretKey::generate();
+        let secret2 = SecretKey::generate();
+        let public1 = secret1.public_key();
+
+        let header = create_test_header(1);
+        let message = header.hash();
+
+        // Sign with secret2 but try to verify with public1
+        let wrong_signature = secret2.sign(message.as_hash().as_bytes());
+
+        let trusted =
+            TrustedHeader::new(header, vec![(public1.clone(), wrong_signature)], Hash::ZERO);
+
+        // Should fail verification
+        assert!(!trusted.verify_signature(&public1, &trusted.signatures[0].1));
+    }
+
+    #[test]
+    fn test_verify_finality_requires_threshold() {
+        let validators: Vec<_> = (0..3).map(|_| SecretKey::generate()).collect();
+        let public_keys: Vec<_> = validators.iter().map(|s| s.public_key()).collect();
+
+        let header = create_test_header(1);
+        let message = header.hash();
+
+        // Create 2 valid signatures (need 2 for 2/3+1 of 3)
+        let sig0 = validators[0].sign(message.as_hash().as_bytes());
+        let sig1 = validators[1].sign(message.as_hash().as_bytes());
+
+        let trusted = TrustedHeader::new(
+            header,
+            vec![
+                (public_keys[0].clone(), sig0),
+                (public_keys[1].clone(), sig1),
+            ],
+            Hash::ZERO,
+        );
+
+        // Should pass - 2 of 3 valid signatures meets threshold of 2
+        let result = trusted.verify_finality(&public_keys, 2);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_verify_finality_fails_below_threshold() {
+        let validators: Vec<_> = (0..3).map(|_| SecretKey::generate()).collect();
+        let public_keys: Vec<_> = validators.iter().map(|s| s.public_key()).collect();
+
+        let header = create_test_header(1);
+        let message = header.hash();
+
+        // Only 1 valid signature
+        let sig0 = validators[0].sign(message.as_hash().as_bytes());
+        // Create an invalid signature for the second slot
+        let invalid_sig = validators[2].sign(b"wrong message");
+
+        let trusted = TrustedHeader::new(
+            header,
+            vec![
+                (public_keys[0].clone(), sig0),
+                (public_keys[1].clone(), invalid_sig), // Wrong key signed
+            ],
+            Hash::ZERO,
+        );
+
+        // Should fail - only 1 valid signature, need 2
+        let result = trusted.verify_finality(&public_keys, 2);
+        assert!(result.is_err());
     }
 }

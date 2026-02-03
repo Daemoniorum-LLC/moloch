@@ -1,8 +1,6 @@
 //! Storage traits.
 
-use moloch_core::{
-    AuditEvent, Block, BlockHash, BlockHeader, EventId, Hash, Result,
-};
+use moloch_core::{AuditEvent, Block, BlockHash, BlockHeader, EventId, Hash, Result};
 
 /// Store for audit events.
 pub trait EventStore {

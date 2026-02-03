@@ -190,12 +190,18 @@ impl ProofBundle {
 
     /// Get number of confirmed proofs.
     pub fn confirmed_count(&self) -> usize {
-        self.proofs.iter().filter(|p| p.status.is_confirmed()).count()
+        self.proofs
+            .iter()
+            .filter(|p| p.status.is_confirmed())
+            .count()
     }
 
     /// Get number of finalized proofs.
     pub fn finalized_count(&self) -> usize {
-        self.proofs.iter().filter(|p| p.status.is_finalized()).count()
+        self.proofs
+            .iter()
+            .filter(|p| p.status.is_finalized())
+            .count()
     }
 
     /// Check if bundle has at least N confirmations across providers.
@@ -223,7 +229,11 @@ pub struct Verification {
 
 impl Verification {
     /// Create a successful verification.
-    pub fn success(provider: impl Into<String>, chain_id: impl Into<String>, confirmations: u64) -> Self {
+    pub fn success(
+        provider: impl Into<String>,
+        chain_id: impl Into<String>,
+        confirmations: u64,
+    ) -> Self {
         Self {
             valid: true,
             provider: provider.into(),
@@ -235,7 +245,11 @@ impl Verification {
     }
 
     /// Create a failed verification.
-    pub fn failure(provider: impl Into<String>, chain_id: impl Into<String>, error: impl Into<String>) -> Self {
+    pub fn failure(
+        provider: impl Into<String>,
+        chain_id: impl Into<String>,
+        error: impl Into<String>,
+    ) -> Self {
         Self {
             valid: false,
             provider: provider.into(),
@@ -272,7 +286,8 @@ mod tests {
             TxId::new("tx1"),
             1000,
             "block1",
-        ).with_status(AnchorStatus::Confirmed(6));
+        )
+        .with_status(AnchorStatus::Confirmed(6));
 
         let proof2 = AnchorProof::new(
             commitment,
@@ -281,7 +296,8 @@ mod tests {
             TxId::new("tx2"),
             2000,
             "block2",
-        ).with_status(AnchorStatus::Pending);
+        )
+        .with_status(AnchorStatus::Pending);
 
         bundle.add_proof(proof1);
         bundle.add_proof(proof2);

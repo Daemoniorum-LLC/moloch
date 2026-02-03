@@ -5,18 +5,16 @@
 //! - Proposal, prevote, precommit phases
 //! - Timeout handling for liveness
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 
 use moloch_chain::ValidatorSet;
 use moloch_core::block::{Block, BlockBuilder, BlockHash, BlockHeader, SealerId};
-use moloch_core::crypto::{Hash, SecretKey, Sig};
+use moloch_core::crypto::{SecretKey, Sig};
 use moloch_core::event::AuditEvent;
 
 use crate::votes::{Vote, VoteSet, VoteType};
@@ -240,7 +238,13 @@ pub struct Proposal {
 
 impl Proposal {
     /// Create a new proposal.
-    pub fn new(height: u64, round: u32, block: Block, valid_round: Option<u32>, key: &SecretKey) -> Self {
+    pub fn new(
+        height: u64,
+        round: u32,
+        block: Block,
+        valid_round: Option<u32>,
+        key: &SecretKey,
+    ) -> Self {
         let bytes = Self::signing_bytes(height, round, &block, valid_round);
         let signature = key.sign(&bytes);
         Self {
@@ -327,8 +331,18 @@ impl ConsensusEngine {
             validator_key,
             validators: RwLock::new(validators.clone()),
             state: RwLock::new(RoundState::new(start_height, 0)),
-            prevotes: RwLock::new(VoteSet::new(start_height, 0, VoteType::Prevote, validators.clone())),
-            precommits: RwLock::new(VoteSet::new(start_height, 0, VoteType::Precommit, validators)),
+            prevotes: RwLock::new(VoteSet::new(
+                start_height,
+                0,
+                VoteType::Prevote,
+                validators.clone(),
+            )),
+            precommits: RwLock::new(VoteSet::new(
+                start_height,
+                0,
+                VoteType::Precommit,
+                validators,
+            )),
             last_block_time: RwLock::new(None),
             pending_events: RwLock::new(Vec::new()),
         }
@@ -359,7 +373,9 @@ impl ConsensusEngine {
     pub async fn current_leader(&self) -> Option<SealerId> {
         let state = self.state.read().await;
         let validators = self.validators.read().await;
-        validators.leader_for_round(state.height + state.round as u64).cloned()
+        validators
+            .leader_for_round(state.height + state.round as u64)
+            .cloned()
     }
 
     /// Add an event to the pending pool.
@@ -371,7 +387,10 @@ impl ConsensusEngine {
     }
 
     /// Create a block proposal if we are the leader.
-    pub async fn create_proposal(&self, parent: Option<&BlockHeader>) -> Result<Proposal, ConsensusError> {
+    pub async fn create_proposal(
+        &self,
+        parent: Option<&BlockHeader>,
+    ) -> Result<Proposal, ConsensusError> {
         if !self.is_leader().await {
             return Err(ConsensusError::NotLeader);
         }
@@ -393,7 +412,10 @@ impl ConsensusEngine {
         }
 
         // Take events for this block
-        let events: Vec<_> = pending.drain(..).take(self.config.max_events_per_block).collect();
+        let events: Vec<_> = pending
+            .drain(..)
+            .take(self.config.max_events_per_block)
+            .collect();
 
         // Build the block
         let mut builder = BlockBuilder::new(self.sealer_id.clone()).events(events);
@@ -406,7 +428,13 @@ impl ConsensusEngine {
 
         // Create proposal
         let valid_round = state.valid_round;
-        let proposal = Proposal::new(state.height, state.round, block, valid_round, &self.validator_key);
+        let proposal = Proposal::new(
+            state.height,
+            state.round,
+            block,
+            valid_round,
+            &self.validator_key,
+        );
 
         info!(
             "Created proposal for height {} round {}",
@@ -417,7 +445,10 @@ impl ConsensusEngine {
     }
 
     /// Handle an incoming proposal.
-    pub async fn handle_proposal(&self, proposal: Proposal) -> Result<Option<Vote>, ConsensusError> {
+    pub async fn handle_proposal(
+        &self,
+        proposal: Proposal,
+    ) -> Result<Option<Vote>, ConsensusError> {
         let mut state = self.state.write().await;
 
         // Verify height and round
@@ -514,7 +545,10 @@ impl ConsensusEngine {
         let validators = self.validators.read().await;
         let voter_sealer = SealerId::new(vote.voter.clone());
         if !validators.contains(&voter_sealer) {
-            return Err(ConsensusError::UnknownValidator(format!("{:?}", vote.voter)));
+            return Err(ConsensusError::UnknownValidator(format!(
+                "{:?}",
+                vote.voter
+            )));
         }
         drop(validators);
 
@@ -641,8 +675,10 @@ impl ConsensusEngine {
 
         // Reset vote sets
         let validators = self.validators.read().await;
-        *self.prevotes.write().await = VoteSet::new(new_height, 0, VoteType::Prevote, validators.clone());
-        *self.precommits.write().await = VoteSet::new(new_height, 0, VoteType::Precommit, validators.clone());
+        *self.prevotes.write().await =
+            VoteSet::new(new_height, 0, VoteType::Prevote, validators.clone());
+        *self.precommits.write().await =
+            VoteSet::new(new_height, 0, VoteType::Precommit, validators.clone());
 
         // Update last block time
         *self.last_block_time.write().await = Some(Instant::now());
@@ -683,10 +719,18 @@ impl ConsensusEngine {
 
                 // Reset vote sets for new round
                 let validators = self.validators.read().await;
-                *self.prevotes.write().await =
-                    VoteSet::new(state.height, new_round, VoteType::Prevote, validators.clone());
-                *self.precommits.write().await =
-                    VoteSet::new(state.height, new_round, VoteType::Precommit, validators.clone());
+                *self.prevotes.write().await = VoteSet::new(
+                    state.height,
+                    new_round,
+                    VoteType::Prevote,
+                    validators.clone(),
+                );
+                *self.precommits.write().await = VoteSet::new(
+                    state.height,
+                    new_round,
+                    VoteType::Precommit,
+                    validators.clone(),
+                );
 
                 warn!(
                     "Timeout in precommit, advancing to round {} at height {}",
@@ -747,6 +791,7 @@ pub struct ConsensusStats {
 mod tests {
     use super::*;
     use moloch_core::event::{ActorId, ActorKind, EventType, ResourceId, ResourceKind};
+    use moloch_core::Hash;
 
     fn make_validator() -> (SecretKey, SealerId) {
         let key = SecretKey::generate();
@@ -878,8 +923,10 @@ mod tests {
     async fn test_consensus_engine_create_proposal() {
         let (key, sealer) = make_validator();
         let validators = ValidatorSet::new(vec![sealer]);
-        let mut config = ConsensusConfig::default();
-        config.min_block_interval = Duration::ZERO;
+        let config = ConsensusConfig {
+            min_block_interval: Duration::ZERO,
+            ..Default::default()
+        };
 
         let engine = ConsensusEngine::new(config, key.clone(), validators, 0);
 
@@ -894,7 +941,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_consensus_engine_not_leader() {
-        let (key1, sealer1) = make_validator();
+        let (_key1, sealer1) = make_validator();
         let (key2, sealer2) = make_validator();
 
         let validators = ValidatorSet::new(vec![sealer1, sealer2]);
@@ -908,8 +955,10 @@ mod tests {
     async fn test_consensus_engine_handle_proposal() {
         let (key, sealer) = make_validator();
         let validators = ValidatorSet::new(vec![sealer.clone()]);
-        let mut config = ConsensusConfig::default();
-        config.min_block_interval = Duration::ZERO;
+        let config = ConsensusConfig {
+            min_block_interval: Duration::ZERO,
+            ..Default::default()
+        };
 
         let engine = ConsensusEngine::new(config, key.clone(), validators, 0);
 

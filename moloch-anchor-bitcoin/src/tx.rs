@@ -35,8 +35,8 @@ pub fn build_op_return_script(commitment_hash: &[u8; 32], chain_id: &str) -> Res
         )));
     }
 
-    let push_bytes = PushBytesBuf::try_from(data)
-        .map_err(|e| BitcoinError::InvalidOpReturn(e.to_string()))?;
+    let push_bytes =
+        PushBytesBuf::try_from(data).map_err(|e| BitcoinError::InvalidOpReturn(e.to_string()))?;
 
     Ok(Builder::new()
         .push_opcode(opcodes::all::OP_RETURN)
@@ -50,7 +50,9 @@ pub fn parse_op_return_script(script: &ScriptBuf) -> Result<(Vec<u8>, Vec<u8>, V
 
     // Check for OP_RETURN
     if bytes.is_empty() || bytes[0] != opcodes::all::OP_RETURN.to_u8() {
-        return Err(BitcoinError::InvalidOpReturn("not an OP_RETURN script".into()));
+        return Err(BitcoinError::InvalidOpReturn(
+            "not an OP_RETURN script".into(),
+        ));
     }
 
     // Skip OP_RETURN and push opcode
@@ -61,7 +63,9 @@ pub fn parse_op_return_script(script: &ScriptBuf) -> Result<(Vec<u8>, Vec<u8>, V
         // OP_PUSHDATA1
         &bytes[3..]
     } else {
-        return Err(BitcoinError::InvalidOpReturn("unexpected script format".into()));
+        return Err(BitcoinError::InvalidOpReturn(
+            "unexpected script format".into(),
+        ));
     };
 
     if data.len() < ANCHOR_DATA_SIZE {
@@ -78,14 +82,15 @@ pub fn parse_op_return_script(script: &ScriptBuf) -> Result<(Vec<u8>, Vec<u8>, V
     }
 
     Ok((
-        data[0..4].to_vec(),          // magic
-        data[4..36].to_vec(),         // commitment hash
-        data[36..44].to_vec(),        // chain id hash
+        data[0..4].to_vec(),   // magic
+        data[4..36].to_vec(),  // commitment hash
+        data[36..44].to_vec(), // chain id hash
     ))
 }
 
 /// UTXO for building transactions.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Utxo {
     /// Previous output point.
     pub outpoint: OutPoint,
@@ -96,6 +101,7 @@ pub struct Utxo {
 }
 
 /// Transaction builder for anchor transactions.
+#[allow(dead_code)]
 pub struct AnchorTxBuilder {
     /// Network.
     network: Network,
@@ -158,11 +164,7 @@ impl AnchorTxBuilder {
     }
 
     /// Build an anchor transaction.
-    pub fn build(
-        &self,
-        commitment_hash: &[u8; 32],
-        chain_id: &str,
-    ) -> Result<Transaction> {
+    pub fn build(&self, commitment_hash: &[u8; 32], chain_id: &str) -> Result<Transaction> {
         // Build OP_RETURN script
         let op_return_script = build_op_return_script(commitment_hash, chain_id)?;
 
@@ -224,7 +226,9 @@ pub fn generate_merkle_proof(
     tx_index: usize,
 ) -> Result<(Vec<[u8; 32]>, u32)> {
     if tx_index >= block_txids.len() {
-        return Err(BitcoinError::SpvProof("transaction index out of range".into()));
+        return Err(BitcoinError::SpvProof(
+            "transaction index out of range".into(),
+        ));
     }
 
     let mut proof = Vec::new();
@@ -272,6 +276,7 @@ pub fn generate_merkle_proof(
 }
 
 /// Verify a merkle proof.
+#[allow(dead_code)]
 pub fn verify_merkle_proof(
     txid: &[u8; 32],
     merkle_root: &[u8; 32],
@@ -336,10 +341,7 @@ mod tests {
     }
 
     fn compute_merkle_root(txids: &[Txid]) -> [u8; 32] {
-        let mut level: Vec<[u8; 32]> = txids
-            .iter()
-            .map(|txid| *txid.as_byte_array())
-            .collect();
+        let mut level: Vec<[u8; 32]> = txids.iter().map(|txid| *txid.as_byte_array()).collect();
 
         while level.len() > 1 {
             let mut next_level = Vec::new();

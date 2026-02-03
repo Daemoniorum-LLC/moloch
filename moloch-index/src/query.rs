@@ -14,9 +14,7 @@
 use std::ops::Range;
 
 use chrono::{DateTime, Utc};
-use moloch_core::{
-    ActorId, AuditEvent, EventId, Hash, ResourceId, ResourceKind, Result,
-};
+use moloch_core::{ActorId, AuditEvent, EventId, Hash, ResourceId, ResourceKind, Result};
 use moloch_storage::ChainStore;
 
 use crate::indexes::{EventTypeKey, IndexEngine, ResourceKey};
@@ -96,7 +94,11 @@ impl Query {
 
     /// Filter events after a given time.
     pub fn after(mut self, time: DateTime<Utc>) -> Self {
-        let end = self.time_range.as_ref().map(|r| r.end).unwrap_or(Utc::now());
+        let end = self
+            .time_range
+            .as_ref()
+            .map(|r| r.end)
+            .unwrap_or(Utc::now());
         self.time_range = Some(time..end);
         self
     }
@@ -245,10 +247,7 @@ impl QueryResult {
     }
 
     /// Load the actual events from storage.
-    pub fn load_events<S: ChainStore>(
-        &self,
-        engine: &IndexEngine<S>,
-    ) -> Result<Vec<AuditEvent>> {
+    pub fn load_events<S: ChainStore>(&self, engine: &IndexEngine<S>) -> Result<Vec<AuditEvent>> {
         let mut events = Vec::with_capacity(self.event_ids.len());
         for id in &self.event_ids {
             if let Some(event) = engine.storage().get_event(id)? {
@@ -289,6 +288,7 @@ impl CompositeQuery {
     }
 
     /// Negate a query.
+    #[allow(clippy::should_implement_trait)]
     pub fn not(query: CompositeQuery) -> Self {
         CompositeQuery::Not(Box::new(query))
     }
@@ -358,7 +358,7 @@ impl CompositeQuery {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration;
+
     use moloch_core::{
         crypto::SecretKey,
         event::{ActorKind, EventType},
@@ -389,11 +389,25 @@ mod tests {
         let key1 = SecretKey::generate();
         let key2 = SecretKey::generate();
 
-        let event1 = test_event(&key1, "repo1", EventType::Push { force: false, commits: 1 });
+        let event1 = test_event(
+            &key1,
+            "repo1",
+            EventType::Push {
+                force: false,
+                commits: 1,
+            },
+        );
         std::thread::sleep(std::time::Duration::from_millis(1));
         let event2 = test_event(&key1, "repo2", EventType::BranchCreated);
         std::thread::sleep(std::time::Duration::from_millis(1));
-        let event3 = test_event(&key2, "repo3", EventType::Push { force: false, commits: 2 });
+        let event3 = test_event(
+            &key2,
+            "repo3",
+            EventType::Push {
+                force: false,
+                commits: 2,
+            },
+        );
 
         engine.index_event(&event1).unwrap();
         engine.index_event(&event2).unwrap();
@@ -412,11 +426,25 @@ mod tests {
         let engine = test_engine();
         let key = SecretKey::generate();
 
-        let event1 = test_event(&key, "repo1", EventType::Push { force: false, commits: 1 });
+        let event1 = test_event(
+            &key,
+            "repo1",
+            EventType::Push {
+                force: false,
+                commits: 1,
+            },
+        );
         std::thread::sleep(std::time::Duration::from_millis(1));
         let event2 = test_event(&key, "repo2", EventType::BranchCreated);
         std::thread::sleep(std::time::Duration::from_millis(1));
-        let event3 = test_event(&key, "repo3", EventType::Push { force: true, commits: 3 });
+        let event3 = test_event(
+            &key,
+            "repo3",
+            EventType::Push {
+                force: true,
+                commits: 3,
+            },
+        );
 
         engine.index_event(&event1).unwrap();
         engine.index_event(&event2).unwrap();
@@ -438,11 +466,25 @@ mod tests {
         let key1 = SecretKey::generate();
         let key2 = SecretKey::generate();
 
-        let event1 = test_event(&key1, "repo1", EventType::Push { force: false, commits: 1 });
+        let event1 = test_event(
+            &key1,
+            "repo1",
+            EventType::Push {
+                force: false,
+                commits: 1,
+            },
+        );
         std::thread::sleep(std::time::Duration::from_millis(1));
         let event2 = test_event(&key1, "repo2", EventType::BranchCreated);
         std::thread::sleep(std::time::Duration::from_millis(1));
-        let event3 = test_event(&key2, "repo3", EventType::Push { force: false, commits: 2 });
+        let event3 = test_event(
+            &key2,
+            "repo3",
+            EventType::Push {
+                force: false,
+                commits: 2,
+            },
+        );
 
         engine.index_event(&event1).unwrap();
         engine.index_event(&event2).unwrap();
@@ -469,7 +511,10 @@ mod tests {
             let event = test_event(
                 &key,
                 &format!("repo{}", i),
-                EventType::Push { force: false, commits: 1 },
+                EventType::Push {
+                    force: false,
+                    commits: 1,
+                },
             );
             engine.index_event(&event).unwrap();
             std::thread::sleep(std::time::Duration::from_millis(1));
@@ -495,7 +540,10 @@ mod tests {
             let event = test_event(
                 &key,
                 &format!("repo{}", i),
-                EventType::Push { force: false, commits: 1 },
+                EventType::Push {
+                    force: false,
+                    commits: 1,
+                },
             );
             engine.index_event(&event).unwrap();
             std::thread::sleep(std::time::Duration::from_millis(1));
@@ -521,7 +569,14 @@ mod tests {
         let start = Utc::now();
         std::thread::sleep(std::time::Duration::from_millis(10));
 
-        let event = test_event(&key, "repo1", EventType::Push { force: false, commits: 1 });
+        let event = test_event(
+            &key,
+            "repo1",
+            EventType::Push {
+                force: false,
+                commits: 1,
+            },
+        );
         engine.index_event(&event).unwrap();
 
         std::thread::sleep(std::time::Duration::from_millis(10));
@@ -540,7 +595,14 @@ mod tests {
         let engine = test_engine();
         let key = SecretKey::generate();
 
-        let event1 = test_event(&key, "repo1", EventType::Push { force: false, commits: 1 });
+        let event1 = test_event(
+            &key,
+            "repo1",
+            EventType::Push {
+                force: false,
+                commits: 1,
+            },
+        );
         std::thread::sleep(std::time::Duration::from_millis(1));
         let event2 = test_event(&key, "repo2", EventType::BranchCreated);
         std::thread::sleep(std::time::Duration::from_millis(1));
@@ -553,7 +615,9 @@ mod tests {
         // Push OR BranchCreated
         let q = CompositeQuery::or(vec![
             CompositeQuery::simple(Query::new().event_type(crate::indexes::EventTypeKey::Push)),
-            CompositeQuery::simple(Query::new().event_type(crate::indexes::EventTypeKey::BranchCreated)),
+            CompositeQuery::simple(
+                Query::new().event_type(crate::indexes::EventTypeKey::BranchCreated),
+            ),
         ]);
 
         let result = q.execute(&engine).unwrap();
@@ -564,7 +628,9 @@ mod tests {
     fn test_has_filters() {
         assert!(!Query::new().has_filters());
         assert!(Query::new().actor_hash(Hash::ZERO).has_filters());
-        assert!(Query::new().resource_kind(ResourceKind::Repository).has_filters());
+        assert!(Query::new()
+            .resource_kind(ResourceKind::Repository)
+            .has_filters());
     }
 
     #[test]

@@ -33,6 +33,7 @@ pub enum ErrorCode {
     InvalidProof = 1006,
     InvalidTimestamp = 1007,
     InvalidFormat = 1008,
+    InvalidInput = 1009,
 
     // Not found errors (2xxx)
     EventNotFound = 2001,
@@ -74,8 +75,7 @@ impl ErrorCode {
 
     /// Check if this is a client error (4xx equivalent).
     pub fn is_client_error(self) -> bool {
-        let code = self.code();
-        code >= 1000 && code < 5000
+        (1000..5000).contains(&self.code())
     }
 
     /// Check if this is a server error (5xx equivalent).
@@ -107,6 +107,10 @@ pub enum Error {
     // ========================================================================
     // Validation Errors (client errors)
     // ========================================================================
+    /// Invalid input (generic validation failure).
+    #[error("[{code}] invalid input: {message}")]
+    InvalidInput { code: ErrorCode, message: String },
+
     /// Invalid hash format or value.
     #[error("[{code}] invalid hash: {message}")]
     InvalidHash {
@@ -191,6 +195,7 @@ impl Error {
     /// Get the error code.
     pub fn code(&self) -> ErrorCode {
         match self {
+            Error::InvalidInput { code, .. } => *code,
             Error::InvalidHash { code, .. } => *code,
             Error::InvalidKey { code, .. } => *code,
             Error::InvalidSignature { code } => *code,
@@ -226,6 +231,14 @@ impl Error {
 // ============================================================================
 
 impl Error {
+    /// Create an InvalidInput error (generic validation failure).
+    pub fn invalid_input(message: impl Into<String>) -> Self {
+        Error::InvalidInput {
+            code: ErrorCode::InvalidInput,
+            message: message.into(),
+        }
+    }
+
     /// Create an InvalidHash error.
     pub fn invalid_hash(message: impl Into<String>) -> Self {
         Error::InvalidHash {
@@ -377,6 +390,7 @@ impl From<hex::FromHexError> for Error {
 // to work via From<String> for the message field
 
 /// Helper to maintain backward compatibility with Error::Variant(String) pattern.
+#[allow(unused_macros)]
 macro_rules! impl_from_string {
     ($variant:ident, $code:expr) => {
         impl From<&str> for $variant {

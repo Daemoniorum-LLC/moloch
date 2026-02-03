@@ -1,6 +1,5 @@
 //! Chain invariants for formal verification.
 
-use moloch_core::{BlockHash, Hash};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -70,7 +69,8 @@ impl<S: ChainState> Invariant<S> for MonotonicHeight {
                     old.height(),
                     new.height()
                 ),
-            ).at_height(new.height()))
+            )
+            .at_height(new.height()))
         } else {
             Ok(())
         }
@@ -100,7 +100,8 @@ impl<S: ChainState> Invariant<S> for ConsecutiveHeight {
                     new.height(),
                     old.height() + 1
                 ),
-            ).at_height(new.height()))
+            )
+            .at_height(new.height()))
         } else {
             Ok(())
         }
@@ -129,7 +130,8 @@ impl<S: ChainState> Invariant<S> for MonotonicEvents {
                     old.event_count(),
                     new.event_count()
                 ),
-            ).at_height(new.height()))
+            )
+            .at_height(new.height()))
         } else {
             Ok(())
         }
@@ -152,10 +154,10 @@ impl<S: ChainState> Invariant<S> for MmrConsistency {
     fn check_transition(&self, old: &S, new: &S) -> Result<(), InvariantViolation> {
         // If events increased, MMR root should change
         if new.event_count() > old.event_count() && new.mmr_root() == old.mmr_root() {
-            Err(InvariantViolation::new(
-                "mmr_consistency",
-                "events added but MMR root unchanged",
-            ).at_height(new.height()))
+            Err(
+                InvariantViolation::new("mmr_consistency", "events added but MMR root unchanged")
+                    .at_height(new.height()),
+            )
         } else {
             Ok(())
         }
@@ -270,6 +272,7 @@ impl ChainInvariants {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use moloch_core::{BlockHash, Hash};
 
     struct MockState {
         height: u64,

@@ -9,15 +9,15 @@
 // Link mimalloc global allocator from the bench library
 use moloch_bench as _;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use moloch_core::crypto::SecretKey;
-use moloch_core::event::{ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind};
+use moloch_core::event::{
+    ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind,
+};
 use moloch_holocrypt::{
-    EncryptedEventBuilder, EncryptionPolicy, generate_keypair,
-    EventProof, ProofType,
-    ThresholdConfig, ThresholdEvent, KeyShareSet,
-    EventPqcKeyPair, PqcEvent, QuantumSafeEvent,
+    generate_keypair, EncryptedEventBuilder, EncryptionPolicy, EventPqcKeyPair, EventProof,
+    KeyShareSet, PqcEvent, QuantumSafeEvent, ThresholdConfig, ThresholdEvent,
 };
 
 fn create_test_event(key: &SecretKey) -> AuditEvent {
@@ -26,7 +26,10 @@ fn create_test_event(key: &SecretKey) -> AuditEvent {
 
     AuditEvent::builder()
         .now()
-        .event_type(EventType::Push { force: false, commits: 10 })
+        .event_type(EventType::Push {
+            force: false,
+            commits: 10,
+        })
         .actor(actor)
         .resource(resource)
         .outcome(Outcome::Success)
@@ -196,9 +199,7 @@ fn bench_threshold_seal(c: &mut Criterion) {
 
     for (name, config) in configs {
         group.bench_function(name, |b| {
-            b.iter(|| {
-                ThresholdEvent::seal(black_box(&event), black_box(config.clone())).unwrap()
-            })
+            b.iter(|| ThresholdEvent::seal(black_box(&event), black_box(config.clone())).unwrap())
         });
     }
 
@@ -280,13 +281,9 @@ fn bench_pqc_unseal(c: &mut Criterion) {
 fn bench_ed25519_vs_mlkem(c: &mut Criterion) {
     let mut group = c.benchmark_group("comparison/keygen");
 
-    group.bench_function("ed25519", |b| {
-        b.iter(|| SecretKey::generate())
-    });
+    group.bench_function("ed25519", |b| b.iter(SecretKey::generate));
 
-    group.bench_function("mlkem768", |b| {
-        b.iter(|| EventPqcKeyPair::generate("key"))
-    });
+    group.bench_function("mlkem768", |b| b.iter(|| EventPqcKeyPair::generate("key")));
 
     group.finish();
 }

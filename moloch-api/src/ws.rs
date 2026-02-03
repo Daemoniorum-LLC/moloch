@@ -6,7 +6,6 @@
 //! - Filter by actor/resource
 //! - Automatic reconnection
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -24,7 +23,6 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use moloch_core::block::Block;
-use moloch_core::crypto::Hash;
 use moloch_core::event::AuditEvent;
 
 use crate::rest::{BlockInfo, EventInfo};
@@ -228,15 +226,21 @@ impl WsHandler {
             *count += 1;
         }
 
-        let subscription = Arc::new(RwLock::new(WsSubscription::new(SubscriptionFilter::default())));
+        let subscription = Arc::new(RwLock::new(WsSubscription::new(
+            SubscriptionFilter::default(),
+        )));
         let event_rx = self.event_tx.subscribe();
         let block_rx = self.block_tx.subscribe();
 
         // Send welcome message
         let sender = Arc::new(AsyncMutex::new(sender));
-        Self::send_message(&sender, WsMessage::Welcome {
-            version: "0.1.0".to_string(),
-        }).await;
+        Self::send_message(
+            &sender,
+            WsMessage::Welcome {
+                version: "0.1.0".to_string(),
+            },
+        )
+        .await;
 
         // Spawn tasks for sending and receiving
         let sender_clone = sender.clone();
@@ -327,18 +331,20 @@ impl WsHandler {
     ) {
         while let Some(result) = receiver.next().await {
             match result {
-                Ok(Message::Text(text)) => {
-                    match serde_json::from_str::<WsMessage>(&text) {
-                        Ok(msg) => {
-                            Self::handle_message(&sender, &subscription, msg).await;
-                        }
-                        Err(e) => {
-                            Self::send_message(&sender, WsMessage::Error {
-                                message: format!("invalid message: {}", e),
-                            }).await;
-                        }
+                Ok(Message::Text(text)) => match serde_json::from_str::<WsMessage>(&text) {
+                    Ok(msg) => {
+                        Self::handle_message(&sender, &subscription, msg).await;
                     }
-                }
+                    Err(e) => {
+                        Self::send_message(
+                            &sender,
+                            WsMessage::Error {
+                                message: format!("invalid message: {}", e),
+                            },
+                        )
+                        .await;
+                    }
+                },
                 Ok(Message::Ping(data)) => {
                     let mut sender = sender.lock().await;
                     let _ = sender.send(Message::Pong(data)).await;
@@ -372,7 +378,9 @@ impl WsHandler {
                 Self::send_message(sender, WsMessage::Subscribed { id }).await;
             }
             WsMessage::Unsubscribe => {
-                subscription.write().update_filter(SubscriptionFilter::default());
+                subscription
+                    .write()
+                    .update_filter(SubscriptionFilter::default());
                 debug!("Client unsubscribed");
             }
             WsMessage::Ping => {
@@ -385,10 +393,7 @@ impl WsHandler {
     }
 
     /// Send a message to the client.
-    async fn send_message(
-        sender: &Arc<AsyncMutex<SplitSink<WebSocket, Message>>>,
-        msg: WsMessage,
-    ) {
+    async fn send_message(sender: &Arc<AsyncMutex<SplitSink<WebSocket, Message>>>, msg: WsMessage) {
         if let Ok(json) = serde_json::to_string(&msg) {
             let mut sender = sender.lock().await;
             if let Err(e) = sender.send(Message::Text(json)).await {
@@ -425,7 +430,10 @@ mod tests {
 
         AuditEvent::builder()
             .now()
-            .event_type(EventType::Push { force: false, commits: 1 })
+            .event_type(EventType::Push {
+                force: false,
+                commits: 1,
+            })
             .actor(actor)
             .resource(resource)
             .sign(key)

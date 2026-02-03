@@ -4,7 +4,7 @@
 //! full blocks. This module provides compact proof formats optimized
 //! for mobile and browser clients.
 
-use moloch_core::{BlockHash, EventId, Hash, PublicKey, Sig};
+use moloch_core::{BlockHash, EventId, Hash};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{LightClientError, Result};
@@ -108,9 +108,8 @@ impl MmrCompactProof {
         // Walk up the tree using siblings
         let mut current = leaf;
         let mut pos = self.position;
-        let mut height = 0u32;
-
-        for sibling in &self.siblings {
+        for (height, sibling) in self.siblings.iter().enumerate() {
+            let height = height as u32;
             let left_pos = pos - (1 << height);
             let is_left = pos == left_pos + (1 << height);
 
@@ -126,7 +125,6 @@ impl MmrCompactProof {
             } else {
                 pos + (1 << (height + 1))
             };
-            height += 1;
         }
 
         // Bag peaks right to left
@@ -241,9 +239,10 @@ impl<'a> ProofVerifier<'a> {
     /// Verify an event inclusion proof.
     pub fn verify_event(&self, proof: &CompactProof) -> Result<()> {
         // Get the trusted header for this block
-        let header = self.headers.get(proof.block_height).ok_or_else(|| {
-            LightClientError::MissingHeader(proof.block_height)
-        })?;
+        let header = self
+            .headers
+            .get(proof.block_height)
+            .ok_or_else(|| LightClientError::MissingHeader(proof.block_height))?;
 
         // Verify block hash matches
         if header.hash() != proof.block_hash {
@@ -257,9 +256,10 @@ impl<'a> ProofVerifier<'a> {
 
         // If MMR proof is present, verify that too
         if let Some(ref mmr_proof) = proof.mmr_proof {
-            let tip = self.headers.tip().ok_or_else(|| {
-                LightClientError::MissingHeader(self.headers.finalized_height())
-            })?;
+            let tip = self
+                .headers
+                .tip()
+                .ok_or_else(|| LightClientError::MissingHeader(self.headers.finalized_height()))?;
             mmr_proof.verify(header.hash().0, tip.mmr_root)?;
         }
 
@@ -281,13 +281,15 @@ impl<'a> ProofVerifier<'a> {
         from_height: u64,
         to_height: u64,
     ) -> Result<()> {
-        let from_header = self.headers.get(from_height).ok_or_else(|| {
-            LightClientError::MissingHeader(from_height)
-        })?;
+        let from_header = self
+            .headers
+            .get(from_height)
+            .ok_or_else(|| LightClientError::MissingHeader(from_height))?;
 
-        let to_header = self.headers.get(to_height).ok_or_else(|| {
-            LightClientError::MissingHeader(to_height)
-        })?;
+        let to_header = self
+            .headers
+            .get(to_height)
+            .ok_or_else(|| LightClientError::MissingHeader(to_height))?;
 
         proof.verify(from_header.mmr_root, to_header.mmr_root)
     }

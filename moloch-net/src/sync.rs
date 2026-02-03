@@ -8,14 +8,13 @@
 //!
 //! The sync manager coordinates with peers to efficiently sync the chain.
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
+use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, oneshot, RwLock};
-use tracing::{debug, error, info, trace, warn};
+use tokio::sync::RwLock;
+use tracing::{error, info, warn};
 
 use crate::discovery::PeerInfo;
 use crate::protocol::{
@@ -26,12 +25,13 @@ use moloch_core::block::{Block, BlockHash, BlockHeader};
 use moloch_core::crypto::Hash;
 
 /// Synchronization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SyncMode {
     /// Full sync from genesis.
     Full,
     /// Fast sync: download blocks and verify MMR proofs.
+    #[default]
     Fast,
     /// Snap sync: download recent state snapshot.
     Snap,
@@ -39,12 +39,6 @@ pub enum SyncMode {
     CatchUp,
     /// Warp sync: skip to recent checkpoint.
     Warp,
-}
-
-impl Default for SyncMode {
-    fn default() -> Self {
-        SyncMode::Fast
-    }
 }
 
 impl std::fmt::Display for SyncMode {
@@ -217,6 +211,7 @@ pub struct Checkpoint {
 
 /// A pending sync request.
 #[derive(Debug)]
+#[allow(dead_code)]
 struct PendingRequest {
     /// Request ID.
     id: MessageId,
@@ -232,6 +227,7 @@ struct PendingRequest {
 
 /// Type of sync request.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum RequestKind {
     Headers { start: u64, count: u32 },
     Blocks { start: u64, count: u32 },
@@ -318,7 +314,8 @@ impl SyncManager {
                 if let (Some(local), Some(target)) = (status.local_height, status.target_height) {
                     if status.blocks_per_second > 0.0 && target > local {
                         let remaining = target - local;
-                        status.eta_seconds = Some((remaining as f64 / status.blocks_per_second) as u64);
+                        status.eta_seconds =
+                            Some((remaining as f64 / status.blocks_per_second) as u64);
                     }
                 }
             }
@@ -454,12 +451,9 @@ impl SyncManager {
 
             // Find a peer that has this range
             let heights = self.peer_heights.read().await;
-            let suitable_peer = available_peers.iter().find(|p| {
-                heights
-                    .get(&p.id)
-                    .map(|h| *h >= range.end)
-                    .unwrap_or(false)
-            });
+            let suitable_peer = available_peers
+                .iter()
+                .find(|p| heights.get(&p.id).map(|h| *h >= range.end).unwrap_or(false));
 
             if let Some(peer) = suitable_peer {
                 let message_id = generate_message_id();
@@ -533,16 +527,17 @@ impl SyncManager {
         }
 
         // Update synced count
-        self.synced_count.fetch_add(
-            received.len() as u64,
-            std::sync::atomic::Ordering::SeqCst,
-        );
+        self.synced_count
+            .fetch_add(received.len() as u64, std::sync::atomic::Ordering::SeqCst);
 
         Ok(received)
     }
 
     /// Handle a received headers response.
-    pub async fn handle_headers(&self, response: HeadersMessage) -> Result<Vec<BlockHeader>, SyncError> {
+    pub async fn handle_headers(
+        &self,
+        response: HeadersMessage,
+    ) -> Result<Vec<BlockHeader>, SyncError> {
         // Remove from pending
         let mut pending = self.pending_requests.write().await;
         let request = pending.remove(&response.request_id);
@@ -767,7 +762,7 @@ mod tests {
     }
 
     fn test_peer_info(height: u64) -> PeerInfo {
-        use crate::discovery::{DiscoverySource, PeerScore, PeerState, PeerMetadata};
+        use crate::discovery::{DiscoverySource, PeerMetadata, PeerScore, PeerState};
 
         PeerInfo {
             id: test_peer_id(),
@@ -849,8 +844,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_manager_needs_sync() {
-        let mut config = SyncConfig::default();
-        config.sync_threshold = 10;
+        let config = SyncConfig {
+            sync_threshold: 10,
+            ..Default::default()
+        };
         let manager = SyncManager::new(config);
 
         // No peers = no sync needed
@@ -987,7 +984,10 @@ mod tests {
                 PendingRequest {
                     id: request_id,
                     peer: test_peer_id(),
-                    kind: RequestKind::Blocks { start: 0, count: 100 },
+                    kind: RequestKind::Blocks {
+                        start: 0,
+                        count: 100,
+                    },
                     sent_at: Instant::now() - Duration::from_secs(60),
                     retries: 0,
                 },

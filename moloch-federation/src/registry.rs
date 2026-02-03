@@ -95,7 +95,8 @@ impl ChainRegistry {
     /// Update chain info.
     pub fn update_info(&self, chain_id: &str, info: ChainInfo) -> Result<()> {
         let mut chains = self.chains.write().unwrap();
-        let entry = chains.get_mut(chain_id)
+        let entry = chains
+            .get_mut(chain_id)
             .ok_or_else(|| FederationError::ChainNotFound(chain_id.to_string()))?;
 
         entry.info = info;
@@ -105,7 +106,8 @@ impl ChainRegistry {
     /// Update chain status.
     pub fn update_status(&self, chain_id: &str, status: ChainStatus) -> Result<()> {
         let mut chains = self.chains.write().unwrap();
-        let entry = chains.get_mut(chain_id)
+        let entry = chains
+            .get_mut(chain_id)
             .ok_or_else(|| FederationError::ChainNotFound(chain_id.to_string()))?;
 
         entry.status = status;
@@ -115,7 +117,8 @@ impl ChainRegistry {
     /// Set trust level for a chain.
     pub fn set_trust_level(&self, chain_id: &str, level: TrustLevel) -> Result<()> {
         let mut chains = self.chains.write().unwrap();
-        let entry = chains.get_mut(chain_id)
+        let entry = chains
+            .get_mut(chain_id)
             .ok_or_else(|| FederationError::ChainNotFound(chain_id.to_string()))?;
 
         entry.trust_level = level;
@@ -125,7 +128,8 @@ impl ChainRegistry {
     /// Unregister a chain.
     pub fn unregister(&self, chain_id: &str) -> Result<()> {
         let mut chains = self.chains.write().unwrap();
-        chains.remove(chain_id)
+        chains
+            .remove(chain_id)
             .ok_or_else(|| FederationError::ChainNotFound(chain_id.to_string()))?;
         Ok(())
     }
@@ -137,7 +141,9 @@ impl ChainRegistry {
 
     /// Get all healthy chains.
     pub fn healthy_chains(&self) -> Vec<RegistryEntry> {
-        self.chains.read().unwrap()
+        self.chains
+            .read()
+            .unwrap()
             .values()
             .filter(|e| e.status == ChainStatus::Healthy)
             .cloned()
@@ -146,7 +152,9 @@ impl ChainRegistry {
 
     /// Get chains with minimum trust level.
     pub fn chains_with_trust(&self, min_level: TrustLevel) -> Vec<RegistryEntry> {
-        self.chains.read().unwrap()
+        self.chains
+            .read()
+            .unwrap()
             .values()
             .filter(|e| e.trust_level >= min_level)
             .cloned()
@@ -190,7 +198,10 @@ mod tests {
         registry.register(test_config("chain-1")).unwrap();
         let result = registry.register(test_config("chain-1"));
 
-        assert!(matches!(result, Err(FederationError::ChainAlreadyRegistered(_))));
+        assert!(matches!(
+            result,
+            Err(FederationError::ChainAlreadyRegistered(_))
+        ));
     }
 
     #[test]
@@ -203,7 +214,9 @@ mod tests {
         assert_eq!(entry.trust_level, TrustLevel::Basic);
 
         // Update trust level
-        registry.set_trust_level("chain-1", TrustLevel::Full).unwrap();
+        registry
+            .set_trust_level("chain-1", TrustLevel::Full)
+            .unwrap();
         let entry = registry.get("chain-1").unwrap();
         assert_eq!(entry.trust_level, TrustLevel::Full);
     }

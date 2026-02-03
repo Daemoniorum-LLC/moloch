@@ -56,12 +56,11 @@ pub mod runtime;
 pub mod specs;
 
 pub use invariants::{
-    BlockInvariant, ChainInvariants, EventInvariant, Invariant, InvariantViolation,
-    MmrInvariant,
+    BlockInvariant, ChainInvariants, EventInvariant, Invariant, InvariantViolation, MmrInvariant,
 };
-pub use properties::{Property, PropertyTest, PropertyResult};
-pub use runtime::{RuntimeCheck, RuntimeMonitor, CheckResult};
-pub use specs::{Specification, SpecViolation};
+pub use properties::{Property, PropertyResult, PropertyTest};
+pub use runtime::{CheckResult, RuntimeCheck, RuntimeMonitor};
+pub use specs::{SpecViolation, Specification};
 
 /// Verify a state transition satisfies all invariants.
 pub fn verify_transition<S>(

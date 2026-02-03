@@ -3,9 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 /// Bitcoin network.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Network {
     /// Bitcoin mainnet.
+    #[default]
     Mainnet,
     /// Bitcoin testnet.
     Testnet,
@@ -44,12 +45,6 @@ impl Network {
             Network::Signet => bitcoin::Network::Signet,
             Network::Regtest => bitcoin::Network::Regtest,
         }
-    }
-}
-
-impl Default for Network {
-    fn default() -> Self {
-        Network::Mainnet
     }
 }
 

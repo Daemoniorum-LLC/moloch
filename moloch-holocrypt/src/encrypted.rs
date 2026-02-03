@@ -8,12 +8,11 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use arcanum_holocrypt::prelude::*;
-use arcanum_holocrypt::container::{HoloCrypt, SealingKey, OpeningKey};
-use arcanum_signatures::ed25519::{Ed25519SigningKey, Ed25519VerifyingKey};
+use arcanum_holocrypt::container::{HoloCrypt, OpeningKey, SealingKey};
+use arcanum_signatures::ed25519::Ed25519VerifyingKey;
 
 use moloch_core::crypto::Hash;
-use moloch_core::event::{AuditEvent, EventId, ActorId, ResourceId, EventType, Outcome};
+use moloch_core::event::{ActorId, AuditEvent, EventId, EventType, Outcome, ResourceId};
 
 use crate::errors::{HoloCryptError, Result};
 
@@ -272,8 +271,7 @@ impl EncryptedEvent {
 
     /// Verify the container structure without decrypting.
     pub fn verify_structure(&self, key: &EventOpeningKey) -> Result<()> {
-        let container: HoloCrypt<EncryptedPayload> =
-            serde_json::from_slice(&self.container)?;
+        let container: HoloCrypt<EncryptedPayload> = serde_json::from_slice(&self.container)?;
 
         container
             .verify_structure(key.verifying_key())
@@ -294,14 +292,14 @@ impl EncryptedEvent {
         }
 
         // Deserialize and unseal the container
-        let container: HoloCrypt<EncryptedPayload> =
-            serde_json::from_slice(&self.container)?;
+        let container: HoloCrypt<EncryptedPayload> = serde_json::from_slice(&self.container)?;
 
-        let payload = container.unseal(&key.inner).map_err(|e| {
-            HoloCryptError::DecryptionFailed {
-                reason: e.to_string(),
-            }
-        })?;
+        let payload =
+            container
+                .unseal(&key.inner)
+                .map_err(|e| HoloCryptError::DecryptionFailed {
+                    reason: e.to_string(),
+                })?;
 
         // Reconstruct the original event
         self.reconstruct_event(&payload)
@@ -361,21 +359,17 @@ impl EncryptedEvent {
 
         // Parse the fields back into types
         // Note: In production, these would be properly serialized/deserialized
-        let event_type: EventType = serde_json::from_str(event_type_str).map_err(|e| {
-            HoloCryptError::SerializationError(format!("event_type: {}", e))
-        })?;
+        let event_type: EventType = serde_json::from_str(event_type_str)
+            .map_err(|e| HoloCryptError::SerializationError(format!("event_type: {}", e)))?;
 
-        let actor: ActorId = serde_json::from_str(actor_str).map_err(|e| {
-            HoloCryptError::SerializationError(format!("actor: {}", e))
-        })?;
+        let actor: ActorId = serde_json::from_str(actor_str)
+            .map_err(|e| HoloCryptError::SerializationError(format!("actor: {}", e)))?;
 
-        let resource: ResourceId = serde_json::from_str(resource_str).map_err(|e| {
-            HoloCryptError::SerializationError(format!("resource: {}", e))
-        })?;
+        let resource: ResourceId = serde_json::from_str(resource_str)
+            .map_err(|e| HoloCryptError::SerializationError(format!("resource: {}", e)))?;
 
-        let outcome: Outcome = serde_json::from_str(outcome_str).map_err(|e| {
-            HoloCryptError::SerializationError(format!("outcome: {}", e))
-        })?;
+        let outcome: Outcome = serde_json::from_str(outcome_str)
+            .map_err(|e| HoloCryptError::SerializationError(format!("outcome: {}", e)))?;
 
         // Reconstruct attestation from stored bytes
         let attestation: moloch_core::event::Attestation =
@@ -517,9 +511,11 @@ impl EncryptedEventBuilder {
 
     /// Build the encrypted event.
     pub fn build(self, key: &EventSealingKey) -> Result<EncryptedEvent> {
-        let event = self.event.ok_or_else(|| HoloCryptError::InvalidConfiguration {
-            reason: "event not set".to_string(),
-        })?;
+        let event = self
+            .event
+            .ok_or_else(|| HoloCryptError::InvalidConfiguration {
+                reason: "event not set".to_string(),
+            })?;
 
         // Serialize fields based on visibility
         let event_type_str = serde_json::to_string(&event.event_type)?;
@@ -668,17 +664,21 @@ impl KeyManager {
 
     /// Decrypt an event using the appropriate key.
     pub fn decrypt(&self, encrypted: &EncryptedEvent) -> Result<AuditEvent> {
-        let key_id = encrypted
-            .header
-            .key_id
-            .as_ref()
-            .ok_or_else(|| HoloCryptError::KeyNotFound {
-                key_id: "unknown".to_string(),
-            })?;
+        let key_id =
+            encrypted
+                .header
+                .key_id
+                .as_ref()
+                .ok_or_else(|| HoloCryptError::KeyNotFound {
+                    key_id: "unknown".to_string(),
+                })?;
 
-        let key = self.keys.get(key_id).ok_or_else(|| HoloCryptError::KeyNotFound {
-            key_id: key_id.clone(),
-        })?;
+        let key = self
+            .keys
+            .get(key_id)
+            .ok_or_else(|| HoloCryptError::KeyNotFound {
+                key_id: key_id.clone(),
+            })?;
 
         encrypted.decrypt(key)
     }

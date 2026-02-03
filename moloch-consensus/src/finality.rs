@@ -7,15 +7,14 @@
 //! - Finality lag monitoring
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 use moloch_chain::ValidatorSet;
-use moloch_core::block::{BlockHash, BlockHeader, SealerId};
+use moloch_core::block::{BlockHash, SealerId};
 use moloch_core::crypto::{Hash, PublicKey, Sig};
 
 use crate::votes::{AggregatedVotes, Vote, VoteType};
@@ -64,12 +63,7 @@ pub struct FinalityProof {
 
 impl FinalityProof {
     /// Create a new finality proof from precommit votes.
-    pub fn new(
-        height: u64,
-        block_hash: BlockHash,
-        round: u32,
-        votes: Vec<Vote>,
-    ) -> Self {
+    pub fn new(height: u64, block_hash: BlockHash, round: u32, votes: Vec<Vote>) -> Self {
         let voters: Vec<_> = votes.iter().map(|v| v.voter.clone()).collect();
         let signatures: Vec<_> = votes.iter().map(|v| v.signature.clone()).collect();
 
@@ -128,7 +122,8 @@ impl FinalityProof {
         }
 
         // In production, we'd verify signatures here
-        self.votes.verify()
+        self.votes
+            .verify()
             .map_err(|_| FinalityError::InvalidSignature)?;
 
         Ok(())
@@ -334,7 +329,10 @@ impl FinalityGadget {
         *self.last_finalized_hash.write().await = Some(block_hash);
 
         // Update status cache
-        self.status_cache.write().await.insert(block_hash, FinalityStatus::Finalized);
+        self.status_cache
+            .write()
+            .await
+            .insert(block_hash, FinalityStatus::Finalized);
 
         // Create notification
         if self.config.enable_notifications {
@@ -344,7 +342,10 @@ impl FinalityGadget {
 
         info!(
             "Block finalized: height={}, hash={:?}, round={}, votes={}",
-            height, block_hash, round, proof.vote_count()
+            height,
+            block_hash,
+            round,
+            proof.vote_count()
         );
 
         Ok(proof)
@@ -372,7 +373,10 @@ impl FinalityGadget {
 
     /// Mark a block as orphaned.
     pub async fn mark_orphaned(&self, block_hash: BlockHash) {
-        self.status_cache.write().await.insert(block_hash, FinalityStatus::Orphaned);
+        self.status_cache
+            .write()
+            .await
+            .insert(block_hash, FinalityStatus::Orphaned);
     }
 
     /// Get pending finality notifications.
@@ -503,7 +507,10 @@ impl CompactFinalityProof {
             .iter()
             .filter_map(|v| {
                 let sealer = SealerId::new(v.clone());
-                validators.iter().position(|s| s == &sealer).map(|i| i as u16)
+                validators
+                    .iter()
+                    .position(|s| s == &sealer)
+                    .map(|i| i as u16)
             })
             .collect();
 
@@ -593,8 +600,21 @@ mod tests {
         BlockHash(hash(b"test block"))
     }
 
-    fn make_vote(key: &SecretKey, pubkey: &PublicKey, height: u64, round: u32, block_hash: BlockHash) -> Vote {
-        Vote::new(height, round, VoteType::Precommit, Some(block_hash), pubkey.clone(), key)
+    fn make_vote(
+        key: &SecretKey,
+        pubkey: &PublicKey,
+        height: u64,
+        round: u32,
+        block_hash: BlockHash,
+    ) -> Vote {
+        Vote::new(
+            height,
+            round,
+            VoteType::Precommit,
+            Some(block_hash),
+            pubkey.clone(),
+            key,
+        )
     }
 
     #[test]
@@ -645,12 +665,15 @@ mod tests {
 
         // With 3 validators, threshold is 3, so 1 vote is insufficient
         let result = proof.verify(&validators);
-        assert!(matches!(result, Err(FinalityError::InsufficientVotes { .. })));
+        assert!(matches!(
+            result,
+            Err(FinalityError::InsufficientVotes { .. })
+        ));
     }
 
     #[test]
     fn test_finality_proof_verify_invalid_validator() {
-        let (key1, sealer1, _) = make_validator();
+        let (_key1, sealer1, _) = make_validator();
         let (key2, _, pubkey2) = make_validator();
 
         let validators = ValidatorSet::new(vec![sealer1]);
@@ -697,7 +720,9 @@ mod tests {
         let block_hash = make_block_hash();
         let vote = make_vote(&key, &pubkey, 1, 0, block_hash);
 
-        let result = gadget.record_finality(1, block_hash, 0, vec![vote], &validators).await;
+        let result = gadget
+            .record_finality(1, block_hash, 0, vec![vote], &validators)
+            .await;
         assert!(result.is_ok());
 
         assert_eq!(gadget.last_finalized_height().await, 1);
@@ -715,7 +740,9 @@ mod tests {
         let vote = make_vote(&key, &pubkey, 5, 0, block_hash);
 
         // Skip heights 1-4
-        let result = gadget.record_finality(5, block_hash, 0, vec![vote], &validators).await;
+        let result = gadget
+            .record_finality(5, block_hash, 0, vec![vote], &validators)
+            .await;
         assert!(matches!(result, Err(FinalityError::FinalityGap { .. })));
     }
 
@@ -729,10 +756,15 @@ mod tests {
         let vote = make_vote(&key, &pubkey, 1, 0, block_hash);
 
         // First finality succeeds
-        gadget.record_finality(1, block_hash, 0, vec![vote.clone()], &validators).await.unwrap();
+        gadget
+            .record_finality(1, block_hash, 0, vec![vote.clone()], &validators)
+            .await
+            .unwrap();
 
         // Second attempt fails
-        let result = gadget.record_finality(1, block_hash, 0, vec![vote], &validators).await;
+        let result = gadget
+            .record_finality(1, block_hash, 0, vec![vote], &validators)
+            .await;
         assert!(matches!(result, Err(FinalityError::AlreadyFinalized(1))));
     }
 
@@ -745,7 +777,10 @@ mod tests {
         let block_hash = make_block_hash();
         let vote = make_vote(&key, &pubkey, 1, 0, block_hash);
 
-        gadget.record_finality(1, block_hash, 0, vec![vote], &validators).await.unwrap();
+        gadget
+            .record_finality(1, block_hash, 0, vec![vote], &validators)
+            .await
+            .unwrap();
 
         let proof = gadget.get_proof(1).await;
         assert!(proof.is_some());
@@ -768,7 +803,10 @@ mod tests {
         assert_eq!(gadget.status(&block_hash).await, FinalityStatus::Tentative);
 
         // After finality
-        gadget.record_finality(1, block_hash, 0, vec![vote], &validators).await.unwrap();
+        gadget
+            .record_finality(1, block_hash, 0, vec![vote], &validators)
+            .await
+            .unwrap();
         assert_eq!(gadget.status(&block_hash).await, FinalityStatus::Finalized);
     }
 
@@ -790,7 +828,10 @@ mod tests {
         let block_hash = make_block_hash();
         let vote = make_vote(&key, &pubkey, 1, 0, block_hash);
 
-        gadget.record_finality(1, block_hash, 0, vec![vote], &validators).await.unwrap();
+        gadget
+            .record_finality(1, block_hash, 0, vec![vote], &validators)
+            .await
+            .unwrap();
 
         let notifications = gadget.drain_notifications().await;
         assert_eq!(notifications.len(), 1);
@@ -823,7 +864,10 @@ mod tests {
 
         let block_hash = make_block_hash();
         let vote = make_vote(&key, &pubkey, 1, 0, block_hash);
-        gadget.record_finality(1, block_hash, 0, vec![vote], &validators).await.unwrap();
+        gadget
+            .record_finality(1, block_hash, 0, vec![vote], &validators)
+            .await
+            .unwrap();
 
         let stats = gadget.stats().await;
         assert_eq!(stats.last_finalized_height, 1);
@@ -841,7 +885,10 @@ mod tests {
         for height in 1u64..=5 {
             let block_hash = BlockHash(hash(&height.to_le_bytes()));
             let vote = make_vote(&key, &pubkey, height, 0, block_hash);
-            gadget.record_finality(height, block_hash, 0, vec![vote], &validators).await.unwrap();
+            gadget
+                .record_finality(height, block_hash, 0, vec![vote], &validators)
+                .await
+                .unwrap();
         }
 
         let proofs = gadget.get_proofs_range(2, 4).await;
@@ -856,8 +903,10 @@ mod tests {
         let (key, sealer, pubkey) = make_validator();
         let validators = ValidatorSet::new(vec![sealer]);
 
-        let mut config = FinalityConfig::default();
-        config.max_proofs_in_memory = 3;
+        let config = FinalityConfig {
+            max_proofs_in_memory: 3,
+            ..Default::default()
+        };
 
         let gadget = FinalityGadget::new(config, 0);
 
@@ -865,7 +914,10 @@ mod tests {
         for height in 1u64..=5 {
             let block_hash = BlockHash(hash(&height.to_le_bytes()));
             let vote = make_vote(&key, &pubkey, height, 0, block_hash);
-            gadget.record_finality(height, block_hash, 0, vec![vote], &validators).await.unwrap();
+            gadget
+                .record_finality(height, block_hash, 0, vec![vote], &validators)
+                .await
+                .unwrap();
         }
 
         // Should have pruned old proofs

@@ -7,7 +7,6 @@
 //! - Consensus (proposals, votes)
 
 use std::io::{self, Read, Write};
-use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -40,7 +39,11 @@ impl ProtocolVersion {
 
     /// Create a new protocol version.
     pub fn new(major: u16, minor: u16, patch: u16) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 }
 
@@ -600,7 +603,11 @@ impl MessageCodec {
     }
 
     /// Write a framed message to a writer.
-    pub fn write_message<W: Write>(&self, writer: &mut W, message: &Message) -> Result<(), CodecError> {
+    pub fn write_message<W: Write>(
+        &self,
+        writer: &mut W,
+        message: &Message,
+    ) -> Result<(), CodecError> {
         let frame = self.encode(message)?;
         writer.write_all(&frame)?;
         Ok(())
@@ -695,7 +702,7 @@ mod tests {
     #[test]
     fn test_message_codec_roundtrip() {
         let codec = MessageCodec::new();
-        let key = SecretKey::generate();
+        let _key = SecretKey::generate();
 
         let original = Message::Status(StatusMessage {
             height: Some(50),

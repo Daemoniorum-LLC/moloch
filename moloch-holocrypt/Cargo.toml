@@ -16,15 +16,15 @@ pqc = []
 # Moloch core
 moloch-core = { path = "../moloch-core" }
 
-# Arcanum cryptographic primitives
-arcanum-holocrypt = { path = "../../arcanum/crates/arcanum-holocrypt", features = ["full"] }
-arcanum-core = { path = "../../arcanum/crates/arcanum-core" }
-arcanum-hash = { path = "../../arcanum/crates/arcanum-hash", default-features = false, features = ["std", "backend-native", "blake3"] }
-arcanum-signatures = { path = "../../arcanum/crates/arcanum-signatures", default-features = false, features = ["ed25519"] }
-arcanum-symmetric = { path = "../../arcanum/crates/arcanum-symmetric" }
-arcanum-threshold = { path = "../../arcanum/crates/arcanum-threshold" }
-arcanum-pqc = { path = "../../arcanum/crates/arcanum-pqc" }
-arcanum-zkp = { path = "../../arcanum/crates/arcanum-zkp" }
+# Arcanum cryptographic primitives (crates.io v0.1)
+arcanum-holocrypt = { version = "0.1", features = ["full"] }
+arcanum-core = { version = "0.1" }
+arcanum-hash = { version = "0.1", default-features = false, features = ["std", "backend-native", "blake3"] }
+arcanum-signatures = { version = "0.1", default-features = false, features = ["ed25519"] }
+arcanum-symmetric = { version = "0.1" }
+arcanum-threshold = { version = "0.1" }
+arcanum-pqc = { version = "0.1" }
+arcanum-zkp = { version = "0.1" }
 
 # Core utilities
 thiserror.workspace = true

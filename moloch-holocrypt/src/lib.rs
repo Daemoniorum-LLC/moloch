@@ -45,25 +45,27 @@
 #![warn(missing_docs, rust_2018_idioms)]
 
 pub mod encrypted;
+pub mod errors;
+pub mod pqc;
 pub mod proofs;
 pub mod threshold;
-pub mod pqc;
-pub mod errors;
 
 pub use encrypted::{
-    EncryptedEvent, EncryptedEventBuilder, EncryptionPolicy, FieldVisibility,
-    generate_keypair, EventSealingKey, EventOpeningKey,
+    generate_keypair, EncryptedEvent, EncryptedEventBuilder, EncryptionPolicy, EventOpeningKey,
+    EventSealingKey, FieldVisibility,
 };
-pub use proofs::{EventProof, ProofType, PropertyAssertion};
-pub use threshold::{ThresholdEvent, KeyShareSet, ThresholdConfig};
-pub use pqc::{PqcEvent, HybridEncryption, QuantumSafeEvent, EventPqcKeyPair};
 pub use errors::{HoloCryptError, Result};
+pub use pqc::{EventPqcKeyPair, HybridEncryption, PqcEvent, QuantumSafeEvent};
+pub use proofs::{EventProof, ProofType, PropertyAssertion};
+pub use threshold::{KeyShareSet, ThresholdConfig, ThresholdEvent};
 
 /// Prelude for convenient imports.
 pub mod prelude {
-    pub use crate::encrypted::{EncryptedEvent, EncryptedEventBuilder, EncryptionPolicy, FieldVisibility};
-    pub use crate::proofs::{EventProof, ProofType, PropertyAssertion};
-    pub use crate::threshold::{ThresholdEvent, KeyShareSet, ThresholdConfig};
-    pub use crate::pqc::{PqcEvent, HybridEncryption, QuantumSafeEvent};
+    pub use crate::encrypted::{
+        EncryptedEvent, EncryptedEventBuilder, EncryptionPolicy, FieldVisibility,
+    };
     pub use crate::errors::{HoloCryptError, Result};
+    pub use crate::pqc::{HybridEncryption, PqcEvent, QuantumSafeEvent};
+    pub use crate::proofs::{EventProof, ProofType, PropertyAssertion};
+    pub use crate::threshold::{KeyShareSet, ThresholdConfig, ThresholdEvent};
 }

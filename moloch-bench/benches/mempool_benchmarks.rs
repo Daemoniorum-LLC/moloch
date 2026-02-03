@@ -46,40 +46,32 @@ fn bench_single_thread_add(c: &mut Criterion) {
         group.throughput(Throughput::Elements(size as u64));
 
         // Mutex-based mempool
-        group.bench_with_input(
-            BenchmarkId::new("mutex", size),
-            &events,
-            |b, events| {
-                b.iter(|| {
-                    let mut pool = Mempool::new(MempoolConfig {
-                        max_size: 100_000,
-                        ..Default::default()
-                    });
-                    for event in events {
-                        pool.add(black_box(event.clone())).unwrap();
-                    }
-                    pool.len()
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("mutex", size), &events, |b, events| {
+            b.iter(|| {
+                let mut pool = Mempool::new(MempoolConfig {
+                    max_size: 100_000,
+                    ..Default::default()
+                });
+                for event in events {
+                    pool.add(black_box(event.clone())).unwrap();
+                }
+                pool.len()
+            })
+        });
 
         // Lock-free mempool
-        group.bench_with_input(
-            BenchmarkId::new("lockfree", size),
-            &events,
-            |b, events| {
-                b.iter(|| {
-                    let pool = ConcurrentMempool::new(ConcurrentMempoolConfig {
-                        max_size: 100_000,
-                        ..Default::default()
-                    });
-                    for event in events {
-                        pool.add(black_box(event.clone())).unwrap();
-                    }
-                    pool.len()
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("lockfree", size), &events, |b, events| {
+            b.iter(|| {
+                let pool = ConcurrentMempool::new(ConcurrentMempoolConfig {
+                    max_size: 100_000,
+                    ..Default::default()
+                });
+                for event in events {
+                    pool.add(black_box(event.clone())).unwrap();
+                }
+                pool.len()
+            })
+        });
     }
 
     group.finish();
@@ -97,52 +89,40 @@ fn bench_single_thread_take(c: &mut Criterion) {
         group.throughput(Throughput::Elements(size as u64));
 
         // Mutex-based mempool
-        group.bench_with_input(
-            BenchmarkId::new("mutex", size),
-            &events,
-            |b, events| {
-                b.iter_batched(
-                    || {
-                        let mut pool = Mempool::new(MempoolConfig {
-                            max_size: 100_000,
-                            ..Default::default()
-                        });
-                        for event in events {
-                            pool.add(event.clone()).unwrap();
-                        }
-                        pool
-                    },
-                    |mut pool| {
-                        black_box(pool.take(size as usize))
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("mutex", size), &events, |b, events| {
+            b.iter_batched(
+                || {
+                    let mut pool = Mempool::new(MempoolConfig {
+                        max_size: 100_000,
+                        ..Default::default()
+                    });
+                    for event in events {
+                        pool.add(event.clone()).unwrap();
+                    }
+                    pool
+                },
+                |mut pool| black_box(pool.take(size as usize)),
+                criterion::BatchSize::SmallInput,
+            )
+        });
 
         // Lock-free mempool
-        group.bench_with_input(
-            BenchmarkId::new("lockfree", size),
-            &events,
-            |b, events| {
-                b.iter_batched(
-                    || {
-                        let pool = ConcurrentMempool::new(ConcurrentMempoolConfig {
-                            max_size: 100_000,
-                            ..Default::default()
-                        });
-                        for event in events {
-                            pool.add(event.clone()).unwrap();
-                        }
-                        pool
-                    },
-                    |pool| {
-                        black_box(pool.take(size as usize))
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("lockfree", size), &events, |b, events| {
+            b.iter_batched(
+                || {
+                    let pool = ConcurrentMempool::new(ConcurrentMempoolConfig {
+                        max_size: 100_000,
+                        ..Default::default()
+                    });
+                    for event in events {
+                        pool.add(event.clone()).unwrap();
+                    }
+                    pool
+                },
+                |pool| black_box(pool.take(size as usize)),
+                criterion::BatchSize::SmallInput,
+            )
+        });
     }
 
     group.finish();

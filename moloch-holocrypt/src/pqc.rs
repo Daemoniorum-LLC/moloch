@@ -12,7 +12,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use arcanum_holocrypt::pqc::{PqcKeyPair, PqcContainer, PqcEnvelope, WrappedKey};
+use arcanum_holocrypt::pqc::{PqcContainer, PqcEnvelope, PqcKeyPair};
 use arcanum_pqc::kem::{MlKem768DecapsulationKey, MlKem768EncapsulationKey};
 
 use moloch_core::event::AuditEvent;
@@ -195,19 +195,15 @@ pub struct PqcEvent {
 
 impl PqcEvent {
     /// Seal an event with PQC encryption.
-    pub fn seal(
-        event: &AuditEvent,
-        key: &EventPqcKeyPair,
-    ) -> Result<Self> {
+    pub fn seal(event: &AuditEvent, key: &EventPqcKeyPair) -> Result<Self> {
         let payload = PqcPayload {
             event: event.clone(),
         };
 
-        let container = PqcContainer::seal(
-            &payload,
-            key.encapsulation_key(),
-        ).map_err(|e| HoloCryptError::EncryptionFailed {
-            reason: e.to_string(),
+        let container = PqcContainer::seal(&payload, key.encapsulation_key()).map_err(|e| {
+            HoloCryptError::EncryptionFailed {
+                reason: e.to_string(),
+            }
         })?;
 
         let container_bytes = serde_json::to_vec(&container)?;
@@ -232,8 +228,7 @@ impl PqcEvent {
             });
         }
 
-        let container: PqcContainer<PqcPayload> =
-            serde_json::from_slice(&self.container)?;
+        let container: PqcContainer<PqcPayload> = serde_json::from_slice(&self.container)?;
 
         let payload = container.unseal(key.decapsulation_key()).map_err(|e| {
             HoloCryptError::DecryptionFailed {
@@ -246,14 +241,13 @@ impl PqcEvent {
 
     /// Verify container structure without decrypting.
     pub fn verify_structure(&self) -> Result<()> {
-        let container: PqcContainer<PqcPayload> =
-            serde_json::from_slice(&self.container)?;
+        let container: PqcContainer<PqcPayload> = serde_json::from_slice(&self.container)?;
 
-        container.verify_structure().map_err(|e| {
-            HoloCryptError::CryptoError {
+        container
+            .verify_structure()
+            .map_err(|e| HoloCryptError::CryptoError {
                 reason: e.to_string(),
-            }
-        })
+            })
     }
 
     /// Get event commitment.
@@ -307,12 +301,9 @@ pub struct QuantumSafeEvent {
 
 impl QuantumSafeEvent {
     /// Create a quantum-safe event using hybrid encryption.
-    pub fn seal(
-        event: &AuditEvent,
-        pqc_key: &EventPqcKeyPair,
-    ) -> Result<Self> {
-        use arcanum_symmetric::{Cipher, ChaCha20Poly1305Cipher};
-        use arcanum_hash::{Hasher, Blake3};
+    pub fn seal(event: &AuditEvent, pqc_key: &EventPqcKeyPair) -> Result<Self> {
+        use arcanum_hash::{Blake3, Hasher};
+        use arcanum_symmetric::{ChaCha20Poly1305Cipher, Cipher};
 
         // Generate random content key
         let content_key_vec = ChaCha20Poly1305Cipher::generate_key();
@@ -337,14 +328,17 @@ impl QuantumSafeEvent {
             &nonce,
             &plaintext,
             Some(&commitment),
-        ).map_err(|e| HoloCryptError::EncryptionFailed {
+        )
+        .map_err(|e| HoloCryptError::EncryptionFailed {
             reason: format!("data encryption failed: {:?}", e),
         })?;
 
         // Wrap content key with PQC envelope
-        let envelope = PqcEnvelope::wrap(&content_key, pqc_key.encapsulation_key())
-            .map_err(|e| HoloCryptError::PqcEncapsulationFailed {
-                reason: e.to_string(),
+        let envelope =
+            PqcEnvelope::wrap(&content_key, pqc_key.encapsulation_key()).map_err(|e| {
+                HoloCryptError::PqcEncapsulationFailed {
+                    reason: e.to_string(),
+                }
             })?;
 
         let envelope_bytes = envelope.to_bytes();
@@ -361,7 +355,7 @@ impl QuantumSafeEvent {
 
     /// Unseal a quantum-safe event.
     pub fn unseal(&self, pqc_key: &EventPqcKeyPair) -> Result<AuditEvent> {
-        use arcanum_symmetric::{Cipher, ChaCha20Poly1305Cipher};
+        use arcanum_symmetric::{ChaCha20Poly1305Cipher, Cipher};
 
         // Verify key ID if available
         if let Some(ref key_id) = self.encryption.pqc_key_id {
@@ -373,15 +367,17 @@ impl QuantumSafeEvent {
         }
 
         // Unwrap content key from PQC envelope
-        let envelope = PqcEnvelope::from_bytes(&self.pqc_envelope)
-            .map_err(|e| HoloCryptError::CryptoError {
+        let envelope = PqcEnvelope::from_bytes(&self.pqc_envelope).map_err(|e| {
+            HoloCryptError::CryptoError {
                 reason: e.to_string(),
-            })?;
+            }
+        })?;
 
-        let content_key = envelope.unwrap(pqc_key.decapsulation_key())
-            .map_err(|e| HoloCryptError::PqcDecapsulationFailed {
+        let content_key = envelope.unwrap(pqc_key.decapsulation_key()).map_err(|e| {
+            HoloCryptError::PqcDecapsulationFailed {
                 reason: e.to_string(),
-            })?;
+            }
+        })?;
 
         // Decrypt event data
         let plaintext = ChaCha20Poly1305Cipher::decrypt(
@@ -389,12 +385,13 @@ impl QuantumSafeEvent {
             &self.nonce,
             &self.encrypted_data,
             Some(&self.commitment),
-        ).map_err(|_| HoloCryptError::DecryptionFailed {
+        )
+        .map_err(|_| HoloCryptError::DecryptionFailed {
             reason: "data decryption failed".into(),
         })?;
 
         // Verify commitment
-        use arcanum_hash::{Hasher, Blake3};
+        use arcanum_hash::{Blake3, Hasher};
         let mut hasher = Blake3::new();
         hasher.update(b"moloch-quantum-safe-v1");
         hasher.update(&plaintext);

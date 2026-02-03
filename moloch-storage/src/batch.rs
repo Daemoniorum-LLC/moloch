@@ -9,6 +9,7 @@ use moloch_core::{AuditEvent, Block, EventId, Hash, Result};
 
 /// An operation to include in a batch.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum BatchOp {
     /// Store an event.
     PutEvent(AuditEvent),

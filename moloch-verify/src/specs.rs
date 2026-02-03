@@ -122,6 +122,7 @@ impl SpecViolation {
 }
 
 /// Well-known specifications for Moloch.
+#[allow(clippy::module_inception)]
 pub mod specs {
     use super::*;
 
@@ -129,22 +130,21 @@ pub mod specs {
     pub fn block_production() -> Specification {
         Specification::new("block_production")
             .with_description("Block production must follow consensus rules")
-            .requires(Condition::new(
-                "valid_proposer",
-                "proposer == validators[height % len(validators)]",
-            ).with_var("proposer").with_var("validators").with_var("height"))
-            .requires(Condition::new(
-                "valid_parent",
-                "block.parent == chain.tip",
-            ))
+            .requires(
+                Condition::new(
+                    "valid_proposer",
+                    "proposer == validators[height % len(validators)]",
+                )
+                .with_var("proposer")
+                .with_var("validators")
+                .with_var("height"),
+            )
+            .requires(Condition::new("valid_parent", "block.parent == chain.tip"))
             .ensures(Condition::new(
                 "height_incremented",
                 "new_height == old_height + 1",
             ))
-            .ensures(Condition::new(
-                "hash_unique",
-                "!chain.contains(block.hash)",
-            ))
+            .ensures(Condition::new("hash_unique", "!chain.contains(block.hash)"))
             .maintains(Condition::new(
                 "monotonic_time",
                 "block.timestamp >= parent.timestamp",
@@ -163,32 +163,17 @@ pub mod specs {
                 "valid_timestamp",
                 "event.timestamp <= now + max_drift",
             ))
-            .ensures(Condition::new(
-                "id_unique",
-                "!chain.has_event(event.id)",
-            ))
-            .ensures(Condition::new(
-                "in_mmr",
-                "mmr.contains(event.id)",
-            ))
+            .ensures(Condition::new("id_unique", "!chain.has_event(event.id)"))
+            .ensures(Condition::new("in_mmr", "mmr.contains(event.id)"))
     }
 
     /// Specification for MMR operations.
     pub fn mmr_append() -> Specification {
         Specification::new("mmr_append")
             .with_description("MMR append must maintain consistency")
-            .requires(Condition::new(
-                "valid_leaf",
-                "leaf.len() == 32",
-            ))
-            .ensures(Condition::new(
-                "size_increased",
-                "new_size == old_size + 1",
-            ))
-            .ensures(Condition::new(
-                "root_changed",
-                "new_root != old_root",
-            ))
+            .requires(Condition::new("valid_leaf", "leaf.len() == 32"))
+            .ensures(Condition::new("size_increased", "new_size == old_size + 1"))
+            .ensures(Condition::new("root_changed", "new_root != old_root"))
             .maintains(Condition::new(
                 "proofs_valid",
                 "forall pos: verify_proof(mmr, pos)",
@@ -211,10 +196,7 @@ pub mod specs {
                 "block_finalized",
                 "chain.finalized.contains(block)",
             ))
-            .maintains(Condition::new(
-                "no_revert",
-                "!chain.can_revert(block)",
-            ))
+            .maintains(Condition::new("no_revert", "!chain.can_revert(block)"))
     }
 }
 
@@ -236,8 +218,8 @@ mod tests {
 
     #[test]
     fn test_spec_violation() {
-        let violation = SpecViolation::new("test_spec", "pre1", "precondition failed")
-            .with_context("x", "-1");
+        let violation =
+            SpecViolation::new("test_spec", "pre1", "precondition failed").with_context("x", "-1");
 
         assert_eq!(violation.spec, "test_spec");
         assert_eq!(violation.context.get("x"), Some(&"-1".to_string()));

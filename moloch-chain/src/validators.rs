@@ -5,11 +5,7 @@
 //! - Round-robin leader selection
 //! - Validator rotation (add/remove)
 
-use moloch_core::{
-    block::SealerId,
-    crypto::PublicKey,
-    Hash,
-};
+use moloch_core::{block::SealerId, Hash};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashSet;
 
@@ -150,11 +146,7 @@ impl ValidatorSet {
         if other.is_empty() {
             return true;
         }
-        let common = self
-            .validators
-            .iter()
-            .filter(|v| other.contains(v))
-            .count();
+        let common = self.validators.iter().filter(|v| other.contains(v)).count();
         // 2/3 majority
         common * 3 > other.len() * 2
     }

@@ -34,6 +34,6 @@ pub mod server;
 pub mod ws;
 
 pub use auth::{ApiKey, AuthConfig, AuthError, AuthMiddleware, Claims};
-pub use rest::{EventsApi, BlocksApi, ProofsApi, StatusApi};
+pub use rest::{BlocksApi, EventsApi, ProofsApi, StatusApi};
 pub use server::{ApiConfig, ApiServer, ApiState};
-pub use ws::{WsHandler, WsSubscription, SubscriptionFilter};
+pub use ws::{SubscriptionFilter, WsHandler, WsSubscription};

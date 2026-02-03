@@ -8,9 +8,11 @@ use moloch_bench as _;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use moloch_core::crypto::SecretKey;
-use moloch_core::event::{ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind};
 use moloch_chain::{Mempool, MempoolConfig};
+use moloch_core::crypto::SecretKey;
+use moloch_core::event::{
+    ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind,
+};
 
 fn create_test_event(key: &SecretKey, n: u32) -> AuditEvent {
     let actor = ActorId::new(key.public_key(), ActorKind::User);
@@ -18,7 +20,10 @@ fn create_test_event(key: &SecretKey, n: u32) -> AuditEvent {
 
     AuditEvent::builder()
         .now()
-        .event_type(EventType::Push { force: false, commits: n })
+        .event_type(EventType::Push {
+            force: false,
+            commits: n,
+        })
         .actor(actor)
         .resource(resource)
         .outcome(Outcome::Success)

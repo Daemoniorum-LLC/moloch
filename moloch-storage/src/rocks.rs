@@ -276,9 +276,7 @@ impl ChainStore for RocksStorage {
     }
 
     fn flush(&self) -> Result<()> {
-        self.db
-            .flush()
-            .map_err(|e| Error::storage(e.to_string()))
+        self.db.flush().map_err(|e| Error::storage(e.to_string()))
     }
 }
 
@@ -377,7 +375,10 @@ impl crate::batch::BulkReader for RocksStorage {
     }
 
     fn get_mmr_nodes(&self, positions: &[u64]) -> Result<Vec<Option<Hash>>> {
-        positions.iter().map(|pos| self.get_mmr_node(*pos)).collect()
+        positions
+            .iter()
+            .map(|pos| self.get_mmr_node(*pos))
+            .collect()
     }
 }
 

@@ -9,11 +9,14 @@
 //!
 //! ```rust
 //! use moloch_core::aligned::{AlignedHash, AlignedHashArray};
+//! use moloch_core::Hash;
 //!
 //! // Single aligned hash (for hot paths)
+//! let some_hash = Hash::ZERO;
 //! let hash = AlignedHash::from(some_hash);
 //!
 //! // Batch of aligned hashes (for SIMD operations)
+//! let hashes = [Hash::ZERO; 4];
 //! let mut batch = AlignedHashArray::<8>::default();
 //! for (i, h) in hashes.iter().enumerate() {
 //!     batch.set(i, *h);
@@ -365,7 +368,11 @@ mod tests {
 
         let arr = AlignedHashArray::<8>::new();
         let arr_ptr = &arr as *const AlignedHashArray<8> as usize;
-        assert_eq!(arr_ptr % 64, 0, "AlignedHashArray should be 64-byte aligned");
+        assert_eq!(
+            arr_ptr % 64,
+            0,
+            "AlignedHashArray should be 64-byte aligned"
+        );
     }
 
     #[test]

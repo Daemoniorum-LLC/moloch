@@ -222,7 +222,10 @@ impl<S: ChainStore> IndexEngine<S> {
 
             // Also index by resource kind
             let mut kind_idx = self.resource_kind_index.write().unwrap();
-            kind_idx.entry(event.resource.kind).or_default().insert(event_id);
+            kind_idx
+                .entry(event.resource.kind)
+                .or_default()
+                .insert(event_id);
         }
 
         // Index by event type
@@ -488,12 +491,8 @@ pub struct IndexStats {
 mod tests {
     use super::*;
     use chrono::Duration;
-    use moloch_core::{
-        crypto::SecretKey,
-        event::{ActorKind, Outcome},
-    };
+    use moloch_core::{crypto::SecretKey, event::ActorKind};
     use moloch_storage::RocksStorage;
-    use std::sync::Arc;
 
     fn test_event(key: &SecretKey, resource_id: &str) -> AuditEvent {
         let actor = ActorId::new(key.public_key(), ActorKind::User);
@@ -586,7 +585,10 @@ mod tests {
 
         let event1 = AuditEvent::builder()
             .now()
-            .event_type(EventType::Push { force: false, commits: 1 })
+            .event_type(EventType::Push {
+                force: false,
+                commits: 1,
+            })
             .actor(actor.clone())
             .resource(ResourceId::new(ResourceKind::Repository, "repo1"))
             .sign(&key)
@@ -623,7 +625,10 @@ mod tests {
 
         let push_event = AuditEvent::builder()
             .now()
-            .event_type(EventType::Push { force: false, commits: 1 })
+            .event_type(EventType::Push {
+                force: false,
+                commits: 1,
+            })
             .actor(actor.clone())
             .resource(resource.clone())
             .sign(&key)

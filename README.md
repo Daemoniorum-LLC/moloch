@@ -1,6 +1,8 @@
 # Moloch
 
-Cryptographic audit chain with post-quantum encryption, zero-knowledge proofs, and cross-chain anchoring.
+Cryptographic audit chain with post-quantum encryption, zero-knowledge proofs, cross-chain anchoring, and autonomous agent accountability.
+
+**~48,700 lines of Rust** across 16 crates and 113 source files. **361 tests** (348 unit + 13 integration).
 
 See [BENCHMARK_REPORT.md](BENCHMARK_REPORT.md) for performance data.
 
@@ -12,12 +14,35 @@ See [BENCHMARK_REPORT.md](BENCHMARK_REPORT.md) for performance data.
 - **Selective Field Encryption** - HoloCrypt encrypts sensitive fields while keeping structure visible
 - **Threshold Encryption** - k-of-n decryption schemes
 - **Cross-Chain Anchoring** - Anchor roots to Bitcoin (OP_RETURN) and Ethereum (calldata)
+- **Agent Accountability** - Cryptographically-enforced autonomous agent governance (see below)
+
+## Agent Accountability
+
+Moloch includes a comprehensive agent accountability framework for governing autonomous AI agent actions through cryptographic guarantees rather than trust assumptions.
+
+**12 modules, ~10,750 lines, 242 tests (229 unit + 13 integration)**
+
+| Module | Purpose |
+|--------|---------|
+| **Causality** | Lamport clocks and causal context chains linking every agent action to its cause |
+| **Principal** | Cryptographic agent identity bound to Ed25519 key pairs |
+| **Attestation** | Signed, timestamped claims with expiry and revocation support |
+| **Capability** | Scoped, delegatable, time-bounded permission tokens signed by grantors |
+| **Human-in-the-Loop** | Structured approval workflows with configurable policies (unanimous, threshold, any) |
+| **Reasoning** | Immutable reasoning traces capturing agent decision-making with constraint references |
+| **Outcome** | Post-execution outcome recording with severity-tiered evidence requirements |
+| **Emergency** | Circuit breaker and kill switch controls for immediate agent shutdown |
+| **Coordination** | Multi-agent commit protocols with Byzantine fault detection |
+
+Each module enforces its invariants cryptographically: capabilities are signed tokens that expire, attestations carry verifiable signatures, and outcomes require evidence proportional to impact severity.
+
+The implementation follows the [Agent Accountability Specification](docs/specs/AGENT_ACCOUNTABILITY.md) and was built under a strict [TDD roadmap](docs/specs/AGENT_ACCOUNTABILITY_TDD.md). A [remediation roadmap](docs/developer/AGENT_ACCOUNTABILITY_REMEDIATION.md) documents known gaps and planned hardening work.
 
 ## Architecture
 
 ```
 moloch/
-├── moloch-core           # Core types: Event, Block, signatures
+├── moloch-core           # Core types: Event, Block, signatures, agent accountability
 ├── moloch-mmr            # Merkle Mountain Range accumulator
 ├── moloch-chain          # Block chain management
 ├── moloch-storage        # RocksDB + mmap storage layer
@@ -192,6 +217,39 @@ The `moloch-api` crate provides:
 - JWT and API key authentication
 - Rate limiting and audit logging
 
+## Documentation
+
+```
+docs/
+├── MASTER_SPECIFICATION.md           # Full system specification
+├── INDEX.md                          # Documentation index
+├── specs/                            # Formal specifications
+│   ├── AGENT_ACCOUNTABILITY.md       # Agent accountability spec
+│   └── AGENT_ACCOUNTABILITY_TDD.md   # TDD implementation roadmap
+├── developer/                        # Developer documentation
+│   ├── quickstart.md                 # Getting started guide
+│   ├── architecture.md               # System design
+│   ├── api.md                        # REST/WebSocket API reference
+│   ├── security.md                   # Security considerations
+│   ├── configuration.md              # Configuration reference
+│   ├── deployment.md                 # Deployment guide
+│   ├── operations.md                 # Operations guide
+│   ├── OSS_RELEASE_ROADMAP.md        # Release roadmap
+│   ├── SPEC_GAPS.md                  # Specification gap analysis
+│   └── AGENT_ACCOUNTABILITY_REMEDIATION.md  # Remediation roadmap
+├── diagrams/                         # Architecture diagrams
+│   ├── anchoring-sequence.md
+│   ├── consensus-sequence.md
+│   ├── data-flow.md
+│   └── sync-sequence.md
+├── llm/                              # Agent-optimized docs (Sigil format)
+│   ├── quickstart.sigil
+│   ├── architecture.sigil
+│   ├── api.sigil
+│   └── security.sigil
+└── archive/                          # Historical documents
+```
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)
@@ -202,7 +260,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## Contributing
 
-See contributing guidelines before submitting PRs.
+See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting PRs.
 
 ## Related Projects
 

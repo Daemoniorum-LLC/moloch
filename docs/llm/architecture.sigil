@@ -1,0 +1,137 @@
+sigil Doc {
+    title: !"Moloch Architecture",
+    summary: !"System design and component overview",
+    evidentiality: !KNOWN,
+    lastVerified: !"2026-01-20",
+    tags: !["architecture", "design", "internals"],
+    content: !markdown```
+
+# Moloch Architecture
+
+## Layer Stack
+
+```
+API Layer       → REST, WebSocket, gRPC
+Chain Layer     → ChainState, Consensus, Mempool
+Privacy Layer   → HoloCrypt (ZK, PQC, Threshold)
+Storage Layer   → RocksDB, MMR, Indexes
+Network Layer   → P2P, Sync, Federation
+Anchor Layer    → Bitcoin, Ethereum
+```
+
+## Core Types
+
+### AuditEvent
+
+```rust
+struct AuditEvent {
+    id: EventId,           // BLAKE3 hash
+    timestamp_ms: u64,
+    event_type: EventType,
+    actor: ActorId,
+    resource: ResourceId,
+    outcome: Outcome,
+    metadata: Value,
+    signature: Signature,  // Ed25519
+}
+```
+
+### Block
+
+```rust
+struct Block {
+    height: u64,
+    parent_hash: Hash,
+    events_root: Hash,
+    state_root: Hash,
+    sealer_id: SealerId,
+    signature: Signature,
+    events: Vec<AuditEvent>,
+}
+```
+
+## Crypto Stack
+
+| Function | Algorithm | Perf |
+|----------|-----------|------|
+| Hash | BLAKE3 | 6M/s |
+| Sign | Ed25519 | 12.8µs |
+| PQC | ML-KEM-768 | 51µs |
+| ZK | Hash commitments | 1.9µs |
+
+## HoloCrypt Features
+
+**Selective Encryption**
+- Actor: encrypted
+- Event type: visible
+- Resource: configurable
+- Metadata: encrypted
+
+**ZK Proof Types**
+- Existence: event in chain
+- Type: event category
+- Membership: actor in set
+- Range: time bounds
+
+**Threshold**
+- Shamir secret sharing
+- k-of-n reconstruction
+
+## Consensus: Aura PoA
+
+```
+Round N:
+1. Leader = validators[N % len(validators)]
+2. Leader proposes block
+3. Validators sign
+4. 2/3+ signatures = finalized
+```
+
+## Storage
+
+### Column Families
+
+| CF | Key | Value |
+|----|-----|-------|
+| events | EventId | AuditEvent |
+| blocks | Height | Block |
+| mmr | Position | Hash |
+
+### Indexes
+
+- actor_idx → events by actor
+- resource_idx → events by resource
+- time_idx → events by timestamp
+- type_idx → events by type
+
+## Network Messages
+
+```rust
+enum Message {
+    Hello { version, chain_id, head },
+    NewEvent(AuditEvent),
+    NewBlock(Block),
+    GetBlocks { start, count },
+    Blocks(Vec<Block>),
+    Proposal(Block),
+    Vote { block_hash, signature },
+}
+```
+
+## Anchoring
+
+**Bitcoin**: OP_RETURN with MMR root
+**Ethereum**: Calldata to anchor contract
+
+## Performance
+
+| Operation | Throughput | Latency |
+|-----------|------------|---------|
+| Event create | 160K/s | 6.2µs |
+| Batch verify | 800K/s | 1.25µs |
+| MMR append | 1.6M/s | 644ns |
+| ZK proof | 500K/s | 1.9µs |
+| Lock-free mempool | 194K/s | - |
+
+    ```,
+}

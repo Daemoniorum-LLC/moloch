@@ -123,7 +123,9 @@ impl Federation {
         source_chain: &str,
         event_id: moloch_core::EventId,
     ) -> Result<CrossChainReference> {
-        let bridge = self.bridges.get(source_chain)
+        let bridge = self
+            .bridges
+            .get(source_chain)
             .ok_or_else(|| FederationError::ChainNotFound(source_chain.to_string()))?;
 
         bridge.create_reference(event_id).await
@@ -131,7 +133,9 @@ impl Federation {
 
     /// Verify a cross-chain reference.
     pub async fn verify_reference(&self, reference: &CrossChainReference) -> Result<bool> {
-        let bridge = self.bridges.get(&reference.source_chain)
+        let bridge = self
+            .bridges
+            .get(&reference.source_chain)
             .ok_or_else(|| FederationError::ChainNotFound(reference.source_chain.clone()))?;
 
         bridge.verify_reference(reference).await

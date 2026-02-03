@@ -6,12 +6,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use tokio::sync::mpsc;
 
 use crate::commitment::Commitment;
 use crate::errors::{AnchorError, Result};
 use crate::proof::{AnchorProof, AnchorStatus, ProofBundle, Verification};
-use crate::provider::{AnchorProvider, AnchorTx, TxId};
+#[cfg(test)]
+use crate::provider::AnchorProvider;
+use crate::provider::{AnchorTx, TxId};
 use crate::registry::{ProviderRegistry, SelectionStrategy};
 use crate::scheduler::{AnchorPriority, AnchorRequest, AnchorScheduler};
 
@@ -152,7 +153,8 @@ impl AnchorManager {
 
     /// Submit a commitment for anchoring.
     pub async fn anchor(&self, commitment: Commitment) -> Result<String> {
-        self.anchor_with_priority(commitment, AnchorPriority::Normal).await
+        self.anchor_with_priority(commitment, AnchorPriority::Normal)
+            .await
     }
 
     /// Submit a commitment with priority.
@@ -181,7 +183,9 @@ impl AnchorManager {
 
     /// Process pending anchor requests.
     pub async fn process(&self) -> Result<usize> {
-        let requests = self.scheduler.next_batch(self.config.max_concurrent_anchors);
+        let requests = self
+            .scheduler
+            .next_batch(self.config.max_concurrent_anchors);
         let mut processed = 0;
 
         for request in requests {
@@ -207,7 +211,9 @@ impl AnchorManager {
         let providers = if request.target_chains.is_empty() {
             self.registry.select(self.config.default_strategy)
         } else {
-            request.target_chains.iter()
+            request
+                .target_chains
+                .iter()
                 .flat_map(|chain| self.registry.for_chain(chain))
                 .collect()
         };
@@ -228,7 +234,7 @@ impl AnchorManager {
                     self.registry.record_success(&provider_id);
                     success = true;
                 }
-                Err(e) => {
+                Err(_e) => {
                     let provider_id = provider.id().to_string();
                     self.registry.record_failure(&provider_id);
                     // Continue trying other providers
@@ -254,9 +260,16 @@ impl AnchorManager {
 
     /// Check and update confirmation status for all pending operations.
     pub async fn update_confirmations(&self) -> Result<()> {
-        let op_ids: Vec<String> = self.operations.read()
+        let op_ids: Vec<String> = self
+            .operations
+            .read()
             .iter()
-            .filter(|(_, op)| matches!(op.status, OperationStatus::Pending | OperationStatus::Confirmed))
+            .filter(|(_, op)| {
+                matches!(
+                    op.status,
+                    OperationStatus::Pending | OperationStatus::Confirmed
+                )
+            })
             .map(|(id, _)| id.clone())
             .collect();
 
@@ -272,7 +285,8 @@ impl AnchorManager {
         let txs: Vec<(String, TxId)> = {
             let ops = self.operations.read();
             if let Some(op) = ops.get(op_id) {
-                op.transactions.iter()
+                op.transactions
+                    .iter()
                     .map(|(pid, tx)| (pid.clone(), tx.tx_id.clone()))
                     .collect()
             } else {
@@ -298,10 +312,7 @@ impl AnchorManager {
                                     AnchorStatus::Confirmed(confirmations)
                                 };
 
-                                let proof = AnchorProof {
-                                    status,
-                                    ..proof
-                                };
+                                let proof = AnchorProof { status, ..proof };
 
                                 if let Some(op) = self.operations.write().get_mut(op_id) {
                                     op.add_proof(proof);
@@ -369,7 +380,9 @@ impl AnchorManager {
             for proof in op.proofs {
                 bundle.add_proof(proof);
             }
-            self.completed.write().insert(op_id.to_string(), bundle.clone());
+            self.completed
+                .write()
+                .insert(op_id.to_string(), bundle.clone());
             return Some(bundle);
         }
         None
@@ -381,14 +394,22 @@ impl AnchorManager {
             match provider.verify(proof).await {
                 Ok(true) => {
                     let confirmations = provider.confirmations(&proof.tx_id).await.unwrap_or(0);
-                    Ok(Verification::success(&proof.provider, &proof.chain_id, confirmations))
+                    Ok(Verification::success(
+                        &proof.provider,
+                        &proof.chain_id,
+                        confirmations,
+                    ))
                 }
-                Ok(false) => {
-                    Ok(Verification::failure(&proof.provider, &proof.chain_id, "Proof verification failed"))
-                }
-                Err(e) => {
-                    Ok(Verification::failure(&proof.provider, &proof.chain_id, e.to_string()))
-                }
+                Ok(false) => Ok(Verification::failure(
+                    &proof.provider,
+                    &proof.chain_id,
+                    "Proof verification failed",
+                )),
+                Err(e) => Ok(Verification::failure(
+                    &proof.provider,
+                    &proof.chain_id,
+                    e.to_string(),
+                )),
             }
         } else {
             Err(AnchorError::ProviderNotFound(proof.provider.clone()))
@@ -445,7 +466,7 @@ pub struct AnchorStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provider::{ProviderCapabilities, ProviderInfo, ProviderStatus, AnchorCost};
+    use crate::provider::{AnchorCost, ProviderCapabilities, ProviderInfo, ProviderStatus};
     use async_trait::async_trait;
     use moloch_core::Hash;
 
@@ -475,12 +496,8 @@ mod tests {
             ProviderStatus::Available
         }
 
-        async fn submit(&self, commitment: &Commitment) -> Result<AnchorTx> {
-            Ok(AnchorTx::pending(
-                TxId::new("mock_tx"),
-                &self.id,
-                "testnet",
-            ))
+        async fn submit(&self, _commitment: &Commitment) -> Result<AnchorTx> {
+            Ok(AnchorTx::pending(TxId::new("mock_tx"), &self.id, "testnet"))
         }
 
         async fn verify(&self, _proof: &AnchorProof) -> Result<bool> {
@@ -514,9 +531,11 @@ mod tests {
     #[tokio::test]
     async fn test_anchor_manager() {
         let registry = Arc::new(ProviderRegistry::new());
-        registry.register(Arc::new(MockProvider {
-            id: "mock".to_string(),
-        })).unwrap();
+        registry
+            .register(Arc::new(MockProvider {
+                id: "mock".to_string(),
+            }))
+            .unwrap();
 
         let scheduler = Arc::new(AnchorScheduler::new());
         let manager = AnchorManager::new(registry, scheduler);

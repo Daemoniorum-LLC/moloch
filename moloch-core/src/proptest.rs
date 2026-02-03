@@ -4,10 +4,12 @@
 
 use proptest::prelude::*;
 
+use crate::agent::{CausalContext, PrincipalId, PrincipalKind, Session, SessionId};
 use crate::block::{Block, BlockBuilder, SealerId};
 use crate::crypto::{hash, Hash, PublicKey, SecretKey, Sig};
 use crate::event::{
-    ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind, ReviewVerdict,
+    ActorId, ActorKind, AuditEvent, EventId, EventType, Outcome, ResourceId, ResourceKind,
+    ReviewVerdict,
 };
 
 // ============================================================================
@@ -20,6 +22,7 @@ fn arb_bytes32() -> impl Strategy<Value = [u8; 32]> {
 }
 
 /// Generate arbitrary 64-byte arrays.
+#[allow(dead_code)]
 fn arb_bytes64() -> impl Strategy<Value = [u8; 64]> {
     prop::array::uniform32(any::<u8>()).prop_flat_map(|first| {
         prop::array::uniform32(any::<u8>()).prop_map(move |second| {
@@ -32,6 +35,7 @@ fn arb_bytes64() -> impl Strategy<Value = [u8; 64]> {
 }
 
 /// Generate arbitrary Hash values.
+#[allow(dead_code)]
 fn arb_hash() -> impl Strategy<Value = Hash> {
     arb_bytes32().prop_map(Hash::from_bytes)
 }
@@ -88,7 +92,8 @@ fn arb_event_type() -> impl Strategy<Value = EventType> {
         Just(EventType::RepoTransferred),
         Just(EventType::RepoVisibilityChanged),
         // Git events
-        (any::<bool>(), 0u32..1000u32).prop_map(|(force, commits)| EventType::Push { force, commits }),
+        (any::<bool>(), 0u32..1000u32)
+            .prop_map(|(force, commits)| EventType::Push { force, commits }),
         Just(EventType::BranchCreated),
         Just(EventType::BranchDeleted),
         Just(EventType::BranchProtectionChanged),
@@ -148,16 +153,19 @@ fn arb_resource_id() -> impl Strategy<Value = ResourceId> {
 
 /// Generate arbitrary ActorId values.
 fn arb_actor_id() -> impl Strategy<Value = (SecretKey, ActorId)> {
-    (arb_secret_key(), arb_actor_kind(), prop::option::of("[a-z]{3,15}")).prop_map(
-        |(key, kind, name)| {
+    (
+        arb_secret_key(),
+        arb_actor_kind(),
+        prop::option::of("[a-z]{3,15}"),
+    )
+        .prop_map(|(key, kind, name)| {
             let actor = ActorId::new(key.public_key(), kind);
             let actor = match name {
                 Some(n) => actor.with_name(n),
                 None => actor,
             };
             (key, actor)
-        },
-    )
+        })
 }
 
 /// Generate an arbitrary signed AuditEvent.
@@ -598,5 +606,378 @@ proptest! {
         let json = serde_json::to_string(&o).expect("json serialize should succeed");
         let decoded: Outcome = serde_json::from_str(&json).expect("json deserialize should succeed");
         prop_assert_eq!(o, decoded);
+    }
+}
+
+// ============================================================================
+// Arbitrary Implementations: Agent Accountability
+// ============================================================================
+
+/// Generate arbitrary PrincipalKind values.
+fn arb_principal_kind() -> impl Strategy<Value = PrincipalKind> {
+    prop_oneof![Just(PrincipalKind::User), Just(PrincipalKind::Organization),]
+}
+
+/// Generate arbitrary PrincipalId values.
+fn arb_principal_id() -> impl Strategy<Value = PrincipalId> {
+    (arb_principal_kind(), "[a-z0-9_]{3,20}").prop_map(|(kind, id)| {
+        PrincipalId::new(id, kind).expect("principal creation should succeed")
+    })
+}
+
+/// Generate arbitrary SessionId values.
+fn arb_session_id() -> impl Strategy<Value = SessionId> {
+    prop::array::uniform16(any::<u8>()).prop_map(SessionId::from_bytes)
+}
+
+/// Generate arbitrary EventId values.
+fn arb_event_id() -> impl Strategy<Value = EventId> {
+    arb_bytes32().prop_map(|bytes| EventId(Hash::from_bytes(bytes)))
+}
+
+/// Generate arbitrary causal chain parameters.
+#[allow(dead_code)]
+fn arb_causal_params() -> impl Strategy<Value = (u32, u64)> {
+    // depth in 0..10, sequence >= depth to satisfy ordering constraints
+    (0u32..10u32).prop_flat_map(|depth| {
+        let min_seq = depth as u64;
+        (Just(depth), min_seq..min_seq + 100)
+    })
+}
+
+// ============================================================================
+// Property Tests: PrincipalId
+// ============================================================================
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(200))]
+
+    // Note: PrincipalId bincode roundtrip skipped because bincode's default config
+    // doesn't support deserialize_any (used by serde's tagged enum)
+
+    /// PrincipalId JSON roundtrip
+    #[test]
+    fn prop_principal_json_roundtrip(p in arb_principal_id()) {
+        let json = serde_json::to_string(&p).expect("json serialize should succeed");
+        let decoded: PrincipalId = serde_json::from_str(&json).expect("json deserialize should succeed");
+        prop_assert_eq!(&p, &decoded);
+    }
+
+    /// PrincipalId hash is deterministic
+    #[test]
+    fn prop_principal_hash_deterministic(p in arb_principal_id()) {
+        let h1 = p.hash();
+        let h2 = p.hash();
+        prop_assert_eq!(h1, h2);
+    }
+
+    /// Different principals have different hashes (collision resistance)
+    #[test]
+    fn prop_principal_hash_collision_resistant(
+        id1 in "[a-z0-9]{3,10}",
+        id2 in "[a-z0-9]{3,10}"
+    ) {
+        prop_assume!(id1 != id2);
+        let p1 = PrincipalId::user(&id1).expect("principal creation should succeed");
+        let p2 = PrincipalId::user(&id2).expect("principal creation should succeed");
+        prop_assert_ne!(p1.hash(), p2.hash());
+    }
+
+    /// Root owner is always a non-service-account
+    #[test]
+    fn prop_principal_root_owner_not_service(p in arb_principal_id()) {
+        let root = p.root_owner();
+        prop_assert!(!root.is_service_account());
+    }
+}
+
+// ============================================================================
+// Property Tests: SessionId
+// ============================================================================
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(200))]
+
+    /// SessionId hex roundtrip
+    #[test]
+    fn prop_session_id_hex_roundtrip(s in arb_session_id()) {
+        let hex = s.to_hex();
+        let restored = SessionId::from_hex(&hex).expect("hex roundtrip should succeed");
+        prop_assert_eq!(s, restored);
+    }
+
+    /// SessionId bytes roundtrip
+    #[test]
+    fn prop_session_id_bytes_roundtrip(bytes in prop::array::uniform16(any::<u8>())) {
+        let s = SessionId::from_bytes(bytes);
+        prop_assert_eq!(s.as_bytes(), &bytes);
+    }
+}
+
+// ============================================================================
+// Property Tests: Session
+// ============================================================================
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    /// Session expiry logic is consistent
+    #[test]
+    fn prop_session_expiry_consistent(
+        p in arb_principal_id(),
+        duration_secs in 1u64..3600u64,
+        elapsed_secs in 0u64..7200u64
+    ) {
+        use std::time::Duration;
+
+        let start = 1000000i64; // Fixed start time for testing
+        let duration = Duration::from_secs(duration_secs);
+        let current = start + (elapsed_secs as i64 * 1000); // Convert to ms
+
+        let session = Session::builder()
+            .principal(p)
+            .started_at(start)
+            .max_duration(duration)
+            .build()
+            .expect("session creation should succeed");
+
+        let is_expired = session.is_expired(current);
+        let remaining = session.remaining_duration(current);
+
+        // INV: is_expired implies remaining is None
+        if is_expired {
+            prop_assert!(remaining.is_none(), "expired session should have no remaining duration");
+        }
+
+        // INV: remaining.is_some() implies !is_expired
+        if remaining.is_some() {
+            prop_assert!(!is_expired, "session with remaining time should not be expired");
+        }
+    }
+
+    /// Session cannot be ended twice
+    #[test]
+    fn prop_session_end_idempotent(
+        p in arb_principal_id()
+    ) {
+        use crate::agent::SessionEndReason;
+
+        let mut session = Session::builder()
+            .principal(p)
+            .build()
+            .expect("session creation should succeed");
+
+        let now = chrono::Utc::now().timestamp_millis();
+
+        // First end should succeed
+        let result1 = session.end(now, SessionEndReason::Completed);
+        prop_assert!(result1.is_ok());
+
+        // Second end should fail
+        let result2 = session.end(now + 1000, SessionEndReason::Completed);
+        prop_assert!(result2.is_err());
+    }
+}
+
+// ============================================================================
+// Property Tests: CausalContext - Invariants
+// ============================================================================
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(200))]
+
+    /// INV-CAUSAL-1: Child sequence must exceed parent sequence
+    #[test]
+    fn prop_causal_inv1_child_sequence_exceeds_parent(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        root_event_id in arb_event_id(),
+        parent_event_id in arb_event_id(),
+        child_seq in 1u64..1000u64
+    ) {
+        // Create root context
+        let root = CausalContext::root(root_event_id, session_id, p);
+        prop_assert_eq!(root.sequence(), 0);
+
+        // Create child with higher sequence
+        let child = root.child(parent_event_id, child_seq);
+        prop_assert!(child.is_ok());
+
+        let child = child.unwrap();
+        prop_assert!(child.sequence() > root.sequence(), "child sequence must exceed parent");
+    }
+
+    /// INV-CAUSAL-1: Child with lower or equal sequence fails
+    #[test]
+    fn prop_causal_inv1_rejects_invalid_sequence(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        root_event_id in arb_event_id(),
+        parent_event_id in arb_event_id()
+    ) {
+        let root = CausalContext::root(root_event_id, session_id, p);
+
+        // Same sequence should fail
+        let child = root.child(parent_event_id, 0);
+        prop_assert!(child.is_err(), "child with same sequence should fail");
+    }
+
+    /// INV-CAUSAL-2: Root event always has depth 0
+    #[test]
+    fn prop_causal_inv2_root_depth_zero(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        event_id in arb_event_id()
+    ) {
+        let root = CausalContext::root(event_id, session_id, p);
+        prop_assert_eq!(root.depth(), 0);
+        prop_assert!(root.is_root());
+        prop_assert!(root.parent_event_id().is_none());
+    }
+
+    /// INV-CAUSAL-3: Validation rejects depth exceeding max
+    #[test]
+    fn prop_causal_inv3_depth_bounded(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        event_id in arb_event_id(),
+        parent_id in arb_event_id(),
+        depth in 1u32..20u32,
+        max_depth in 0u32..10u32
+    ) {
+        use crate::agent::CausalContextBuilder;
+
+        // Build context with specific depth
+        let ctx = CausalContextBuilder::new()
+            .root_event_id(event_id)
+            .session_id(session_id)
+            .principal(p)
+            .depth(depth)
+            .sequence(depth as u64)
+            .parent_event_id(parent_id)
+            .build()
+            .expect("context creation should succeed");
+
+        let result = ctx.validate(max_depth);
+
+        if depth > max_depth {
+            prop_assert!(result.is_err(), "depth {} should exceed max {}", depth, max_depth);
+        } else {
+            prop_assert!(result.is_ok(), "depth {} should be within max {}", depth, max_depth);
+        }
+    }
+
+    /// Child depth increments by exactly 1
+    #[test]
+    fn prop_causal_child_depth_increments(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        root_event_id in arb_event_id(),
+        parent_event_id in arb_event_id()
+    ) {
+        let root = CausalContext::root(root_event_id, session_id, p);
+        let child = root.child(parent_event_id, 1).unwrap();
+
+        prop_assert_eq!(child.depth(), root.depth() + 1);
+
+        // Chain of children
+        let child2 = child.child(parent_event_id, 2).unwrap();
+        prop_assert_eq!(child2.depth(), child.depth() + 1);
+    }
+
+    /// Root event ID is preserved through causal chain
+    #[test]
+    fn prop_causal_root_preserved(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        root_event_id in arb_event_id(),
+        parent_event_id in arb_event_id()
+    ) {
+        let root = CausalContext::root(root_event_id, session_id, p);
+        let child1 = root.child(parent_event_id, 1).unwrap();
+        let child2 = child1.child(parent_event_id, 2).unwrap();
+
+        prop_assert_eq!(root.root_event_id(), child1.root_event_id());
+        prop_assert_eq!(root.root_event_id(), child2.root_event_id());
+    }
+
+    /// Principal is preserved through causal chain
+    #[test]
+    fn prop_causal_principal_preserved(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        root_event_id in arb_event_id(),
+        parent_event_id in arb_event_id()
+    ) {
+        let root = CausalContext::root(root_event_id, session_id, p.clone());
+        let child1 = root.child(parent_event_id, 1).unwrap();
+        let child2 = child1.child(parent_event_id, 2).unwrap();
+
+        prop_assert_eq!(root.principal(), &p);
+        prop_assert_eq!(child1.principal(), &p);
+        prop_assert_eq!(child2.principal(), &p);
+    }
+
+    /// Session ID is preserved through causal chain
+    #[test]
+    fn prop_causal_session_preserved(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        root_event_id in arb_event_id(),
+        parent_event_id in arb_event_id()
+    ) {
+        let root = CausalContext::root(root_event_id, session_id, p);
+        let child1 = root.child(parent_event_id, 1).unwrap();
+        let child2 = child1.child(parent_event_id, 2).unwrap();
+
+        prop_assert_eq!(root.session_id(), session_id);
+        prop_assert_eq!(child1.session_id(), session_id);
+        prop_assert_eq!(child2.session_id(), session_id);
+    }
+
+    /// Validate against parent catches mismatched root events
+    #[test]
+    fn prop_causal_validate_root_mismatch(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        root_event_id1 in arb_event_id(),
+        root_event_id2 in arb_event_id(),
+        parent_event_id in arb_event_id()
+    ) {
+        use crate::agent::CausalContextBuilder;
+
+        prop_assume!(root_event_id1 != root_event_id2);
+
+        let parent = CausalContext::root(root_event_id1, session_id, p.clone());
+
+        // Create child with different root event ID (invalid)
+        let child = CausalContextBuilder::new()
+            .root_event_id(root_event_id2)  // Different root!
+            .session_id(session_id)
+            .principal(p)
+            .depth(1)
+            .sequence(1)
+            .parent_event_id(parent_event_id)
+            .build()
+            .expect("context creation should succeed");
+
+        let result = child.validate_against_parent(&parent);
+        prop_assert!(result.is_err(), "mismatched root event should fail validation");
+    }
+
+    // Note: CausalContext bincode roundtrip skipped because bincode's default config
+    // doesn't support deserialize_any (used by PrincipalKind's tagged enum)
+
+    /// CausalContext JSON roundtrip
+    #[test]
+    fn prop_causal_context_json_roundtrip(
+        p in arb_principal_id(),
+        session_id in arb_session_id(),
+        event_id in arb_event_id()
+    ) {
+        let ctx = CausalContext::root(event_id, session_id, p);
+        let json = serde_json::to_string(&ctx).expect("json serialize should succeed");
+        let decoded: CausalContext = serde_json::from_str(&json).expect("json deserialize should succeed");
+        prop_assert_eq!(&ctx, &decoded);
     }
 }

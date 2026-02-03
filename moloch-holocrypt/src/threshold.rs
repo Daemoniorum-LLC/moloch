@@ -11,8 +11,8 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use arcanum_holocrypt::container::threshold::{ThresholdContainer, KeyShare as HoloKeyShare};
-use arcanum_threshold::{Share, ShamirScheme};
+use arcanum_holocrypt::container::threshold::{KeyShare as HoloKeyShare, ThresholdContainer};
+use arcanum_threshold::{ShamirScheme, Share};
 
 use moloch_core::event::AuditEvent;
 
@@ -293,10 +293,7 @@ struct ThresholdPayload {
 
 impl ThresholdEvent {
     /// Create a threshold-encrypted event.
-    pub fn seal(
-        event: &AuditEvent,
-        config: ThresholdConfig,
-    ) -> Result<(Self, Vec<KeyShare>)> {
+    pub fn seal(event: &AuditEvent, config: ThresholdConfig) -> Result<(Self, Vec<KeyShare>)> {
         if config.is_expired() {
             return Err(HoloCryptError::KeyExpired {
                 key_id: "threshold config".to_string(),
@@ -309,19 +306,15 @@ impl ThresholdEvent {
         };
 
         // Create threshold container
-        let (container, holo_shares) = ThresholdContainer::seal(
-            &payload,
-            config.threshold,
-            config.total_shares,
-        ).map_err(|e| HoloCryptError::EncryptionFailed {
-            reason: e.to_string(),
-        })?;
+        let (container, holo_shares) =
+            ThresholdContainer::seal(&payload, config.threshold, config.total_shares).map_err(
+                |e| HoloCryptError::EncryptionFailed {
+                    reason: e.to_string(),
+                },
+            )?;
 
         // Convert shares
-        let shares: Vec<KeyShare> = holo_shares
-            .iter()
-            .map(KeyShare::from_holo_share)
-            .collect();
+        let shares: Vec<KeyShare> = holo_shares.iter().map(KeyShare::from_holo_share).collect();
 
         // Serialize container
         let container_bytes = serde_json::to_vec(&container)?;
@@ -363,11 +356,12 @@ impl ThresholdEvent {
         let holo_shares = shares.to_holo_shares();
 
         // Unseal
-        let payload = container.unseal(&holo_shares).map_err(|e| {
-            HoloCryptError::DecryptionFailed {
-                reason: e.to_string(),
-            }
-        })?;
+        let payload =
+            container
+                .unseal(&holo_shares)
+                .map_err(|e| HoloCryptError::DecryptionFailed {
+                    reason: e.to_string(),
+                })?;
 
         Ok(payload.event)
     }
@@ -377,11 +371,11 @@ impl ThresholdEvent {
         let container: ThresholdContainer<ThresholdPayload> =
             serde_json::from_slice(&self.container)?;
 
-        container.verify_structure().map_err(|e| {
-            HoloCryptError::CryptoError {
+        container
+            .verify_structure()
+            .map_err(|e| HoloCryptError::CryptoError {
                 reason: e.to_string(),
-            }
-        })
+            })
     }
 
     /// Get event ID.
@@ -428,10 +422,7 @@ impl ShareDistributor {
     }
 
     /// Assign shares to owners.
-    pub fn distribute(
-        shares: Vec<KeyShare>,
-        owners: &[impl AsRef<str>],
-    ) -> Result<Self> {
+    pub fn distribute(shares: Vec<KeyShare>, owners: &[impl AsRef<str>]) -> Result<Self> {
         if shares.len() != owners.len() {
             return Err(HoloCryptError::InvalidConfiguration {
                 reason: format!(
@@ -464,10 +455,7 @@ impl ShareDistributor {
     }
 
     /// Collect shares from multiple owners into a share set.
-    pub fn collect<'a>(
-        &self,
-        owner_ids: impl IntoIterator<Item = &'a str>,
-    ) -> KeyShareSet {
+    pub fn collect<'a>(&self, owner_ids: impl IntoIterator<Item = &'a str>) -> KeyShareSet {
         let mut set = KeyShareSet::new();
 
         for owner_id in owner_ids {
@@ -496,10 +484,7 @@ impl ShareRefresher {
     /// Refresh shares by creating new shares that reconstruct to the same secret.
     ///
     /// Requires threshold shares from the old set.
-    pub fn refresh(
-        old_shares: &KeyShareSet,
-        config: &ThresholdConfig,
-    ) -> Result<Vec<KeyShare>> {
+    pub fn refresh(old_shares: &KeyShareSet, config: &ThresholdConfig) -> Result<Vec<KeyShare>> {
         if old_shares.len() < config.threshold {
             return Err(HoloCryptError::InsufficientShares {
                 required: config.threshold,
@@ -522,13 +507,10 @@ impl ShareRefresher {
         })?;
 
         // Create new shares with incremented version
-        let new_shamir_shares = ShamirScheme::split(
-            &secret,
-            config.threshold,
-            config.total_shares,
-        ).map_err(|e| HoloCryptError::CryptoError {
-            reason: format!("share split failed: {:?}", e),
-        })?;
+        let new_shamir_shares = ShamirScheme::split(&secret, config.threshold, config.total_shares)
+            .map_err(|e| HoloCryptError::CryptoError {
+                reason: format!("share split failed: {:?}", e),
+            })?;
 
         // Convert to KeyShares with new version
         let new_version = old_shares
@@ -631,11 +613,7 @@ mod tests {
         let (threshold_event, shares) = ThresholdEvent::seal(&event, config).unwrap();
 
         // Try different pairs
-        let pairs = vec![
-            vec![0, 1],
-            vec![0, 2],
-            vec![1, 2],
-        ];
+        let pairs = vec![vec![0, 1], vec![0, 2], vec![1, 2]];
 
         for pair in pairs {
             let mut share_set = KeyShareSet::new();
@@ -660,7 +638,10 @@ mod tests {
         share_set.add(shares[0].clone());
 
         let result = threshold_event.unseal(&share_set);
-        assert!(matches!(result, Err(HoloCryptError::InsufficientShares { .. })));
+        assert!(matches!(
+            result,
+            Err(HoloCryptError::InsufficientShares { .. })
+        ));
     }
 
     #[test]
@@ -701,8 +682,7 @@ mod tests {
 
     #[test]
     fn test_key_share_serialization() {
-        let share = KeyShare::new(1, vec![1, 2, 3, 4, 5])
-            .with_owner("alice");
+        let share = KeyShare::new(1, vec![1, 2, 3, 4, 5]).with_owner("alice");
 
         let bytes = share.to_bytes();
         let restored = KeyShare::from_bytes(&bytes).unwrap();

@@ -50,6 +50,7 @@ tracing.workspace = true
 uuid = { version = "1.11", features = ["v4", "serde"] }
 parking_lot = "0.12"
 dashmap = "6"
+hex.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -68,7 +68,9 @@ pub mod mock;
 
 pub use commitment::{Commitment, CommitmentBuilder, CommitmentData};
 pub use errors::{AnchorError, Result};
-pub use manager::{AnchorManager, AnchorManagerConfig, AnchorOperation, AnchorStats, OperationStatus};
+pub use manager::{
+    AnchorManager, AnchorManagerConfig, AnchorOperation, AnchorStats, OperationStatus,
+};
 pub use proof::{AnchorProof, AnchorStatus, ProofBundle, SpvProof, Verification};
 pub use provider::{
     AnchorCost, AnchorProvider, AnchorTx, FinalityType, ProviderCapabilities, ProviderInfo,

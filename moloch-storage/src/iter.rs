@@ -208,14 +208,14 @@ impl<'a, S: ChainStore> Iterator for MmrNodeIterator<'a, S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::RocksStorage;
     use moloch_core::{
         block::{BlockBuilder, SealerId},
         crypto::SecretKey,
         event::{ActorId, ActorKind, EventType, ResourceId, ResourceKind},
         AuditEvent,
     };
-    use crate::RocksStorage;
-    use crate::traits::EventStore;
 
     fn test_event(key: &SecretKey) -> AuditEvent {
         let actor = ActorId::new(key.public_key(), ActorKind::User);

@@ -17,6 +17,7 @@ members = [
     "moloch-anchor-bitcoin",
     "moloch-anchor-ethereum",
     "moloch-bench",
+    "examples",
 ]
 
 [workspace.package]
@@ -24,7 +25,9 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Daemoniorum LLC"]
 license = "MIT"
-repository = "https://github.com/Daemoniorum-LLC/workspace"
+repository = "https://github.com/Daemoniorum-LLC/moloch"
+keywords = ["audit", "blockchain", "cryptography", "merkle", "zk-proofs"]
+categories = ["cryptography", "data-structures"]
 
 [workspace.dependencies]
 # Core
@@ -39,8 +42,8 @@ bincode = "1.3"
 rkyv = { version = "0.8" }
 
 # Crypto - using Arcanum primitives with SIMD-accelerated native backend
-arcanum-hash = { path = "../arcanum/crates/arcanum-hash", default-features = false, features = ["std", "backend-native", "blake3"] }
-arcanum-signatures = { path = "../arcanum/crates/arcanum-signatures", default-features = false, features = ["ed25519", "batch"] }
+arcanum-hash = { version = "0.1", default-features = false, features = ["std", "backend-native", "blake3"] }
+arcanum-signatures = { version = "0.1", default-features = false, features = ["ed25519", "batch"] }
 rayon = "1.10"
 rand = "0.8"
 hex = "0.4"
@@ -61,6 +64,7 @@ memmap2 = "0.9"
 
 # Time
 chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
 
 # Logging
 tracing = "0.1"

@@ -56,7 +56,7 @@ pub use iter::{BlockIterator, EventIterator, MmrNodeIterator};
 pub use mmap::{MmapConfig, MmapStats, MmapStorage};
 pub use rocks::RocksStorage;
 pub use snapshot::{
-    ImportPhase, ImportProgress, PruneConfig, PruneStats, Snapshot, SnapshotBuilder,
-    SnapshotError, SnapshotHeader, SnapshotReader, SNAPSHOT_MAGIC, SNAPSHOT_VERSION,
+    ImportPhase, ImportProgress, PruneConfig, PruneStats, Snapshot, SnapshotBuilder, SnapshotError,
+    SnapshotHeader, SnapshotReader, SNAPSHOT_MAGIC, SNAPSHOT_VERSION,
 };
 pub use traits::{BlockStore, ChainStore, EventStore};

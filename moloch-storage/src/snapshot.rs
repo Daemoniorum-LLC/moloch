@@ -126,6 +126,7 @@ pub enum SnapshotError {
 pub type Result<T> = std::result::Result<T, SnapshotError>;
 
 /// Snapshot builder for creating snapshots from storage.
+#[allow(dead_code)]
 pub struct SnapshotBuilder<'a, S> {
     storage: &'a S,
     height: Option<u64>,
@@ -511,12 +512,7 @@ mod tests {
             created_at: 0,
         };
 
-        let snapshot = Snapshot::new(
-            header,
-            vec![1, 2, 3, 4],
-            vec![5, 6, 7, 8],
-            None,
-        );
+        let snapshot = Snapshot::new(header, vec![1, 2, 3, 4], vec![5, 6, 7, 8], None);
 
         let mut buffer = Vec::new();
         snapshot.write(&mut buffer).unwrap();

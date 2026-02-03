@@ -2,12 +2,12 @@
 
 use std::sync::Arc;
 
-use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 
 use crate::chain::ChainStatus;
 use crate::errors::{FederationError, Result};
-use crate::proof::{CrossChainReference, FinalityProof, ProofBundle};
+use crate::proof::{CrossChainReference, ProofBundle};
 
 use moloch_core::{BlockHash, EventId, Hash};
 
@@ -47,6 +47,7 @@ pub enum BridgeState {
 
 /// Messages that can be sent over the bridge.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum BridgeMessage {
     /// Request event proof.
     RequestProof {
@@ -96,6 +97,7 @@ pub struct Bridge {
 }
 
 /// A pending request.
+#[allow(dead_code)]
 struct PendingRequest {
     /// Request ID.
     id: u64,
@@ -143,7 +145,7 @@ impl Bridge {
         let reference = CrossChainReference::new(
             self.chain_id.clone(),
             event_id,
-            0, // Would be fetched from remote
+            0,                     // Would be fetched from remote
             BlockHash(Hash::ZERO), // Would be fetched from remote
         );
 
@@ -160,10 +162,9 @@ impl Bridge {
         }
 
         // Check if proof is present
-        let proof = reference.proof.as_ref()
-            .ok_or_else(|| FederationError::ProofVerificationFailed(
-                "no proof attached".to_string(),
-            ))?;
+        let proof = reference.proof.as_ref().ok_or_else(|| {
+            FederationError::ProofVerificationFailed("no proof attached".to_string())
+        })?;
 
         // Verify event proof matches reference
         if proof.event_proof.event_id != reference.event_id {

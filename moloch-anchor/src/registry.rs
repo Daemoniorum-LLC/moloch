@@ -66,6 +66,7 @@ struct ProviderEntry {
 }
 
 /// Registry of anchor providers.
+#[allow(dead_code)]
 pub struct ProviderRegistry {
     /// Configuration.
     config: RegistryConfig,
@@ -108,11 +109,7 @@ impl ProviderRegistry {
         self.providers.write().insert(id.clone(), entry);
 
         // Add to chain map
-        self.chain_map
-            .write()
-            .entry(chain_id)
-            .or_default()
-            .push(id);
+        self.chain_map.write().entry(chain_id).or_default().push(id);
 
         Ok(())
     }
@@ -136,11 +133,7 @@ impl ProviderRegistry {
         };
 
         self.providers.write().insert(id.clone(), entry);
-        self.chain_map
-            .write()
-            .entry(chain_id)
-            .or_default()
-            .push(id);
+        self.chain_map.write().entry(chain_id).or_default().push(id);
 
         Ok(())
     }
@@ -194,10 +187,7 @@ impl ProviderRegistry {
 
     /// Get provider info by ID.
     pub fn get_info(&self, id: &str) -> Option<ProviderInfo> {
-        self.providers
-            .read()
-            .get(id)
-            .map(|e| e.provider.info())
+        self.providers.read().get(id).map(|e| e.provider.info())
     }
 
     /// Get all enabled providers.
@@ -231,10 +221,7 @@ impl ProviderRegistry {
     pub fn select(&self, strategy: SelectionStrategy) -> Vec<Arc<dyn AnchorProvider>> {
         let providers = self.providers.read();
 
-        let mut entries: Vec<_> = providers
-            .values()
-            .filter(|e| e.enabled)
-            .collect();
+        let mut entries: Vec<_> = providers.values().filter(|e| e.enabled).collect();
 
         match strategy {
             SelectionStrategy::All => {
@@ -243,7 +230,10 @@ impl ProviderRegistry {
             }
             SelectionStrategy::First => {
                 entries.sort_by(|a, b| b.priority.cmp(&a.priority));
-                entries.first().map(|e| vec![Arc::clone(&e.provider)]).unwrap_or_default()
+                entries
+                    .first()
+                    .map(|e| vec![Arc::clone(&e.provider)])
+                    .unwrap_or_default()
             }
             SelectionStrategy::Cheapest | SelectionStrategy::Fastest => {
                 // These require async cost/speed estimation, return all for now
@@ -279,7 +269,8 @@ impl ProviderRegistry {
     /// Check health of all providers.
     pub async fn health_check(&self) -> HashMap<String, ProviderStatus> {
         let mut results = HashMap::new();
-        let providers: Vec<_> = self.providers
+        let providers: Vec<_> = self
+            .providers
             .read()
             .iter()
             .map(|(id, e)| (id.clone(), Arc::clone(&e.provider)))
@@ -370,7 +361,7 @@ mod tests {
             ProviderStatus::Available
         }
 
-        async fn submit(&self, commitment: &Commitment) -> Result<AnchorTx> {
+        async fn submit(&self, _commitment: &Commitment) -> Result<AnchorTx> {
             Ok(AnchorTx::pending(
                 TxId::new("mock_tx"),
                 &self.id,
@@ -424,20 +415,26 @@ mod tests {
     fn test_chain_mapping() {
         let registry = ProviderRegistry::new();
 
-        registry.register(Arc::new(MockProvider {
-            id: "btc1".to_string(),
-            chain_id: "bitcoin".to_string(),
-        })).unwrap();
+        registry
+            .register(Arc::new(MockProvider {
+                id: "btc1".to_string(),
+                chain_id: "bitcoin".to_string(),
+            }))
+            .unwrap();
 
-        registry.register(Arc::new(MockProvider {
-            id: "btc2".to_string(),
-            chain_id: "bitcoin".to_string(),
-        })).unwrap();
+        registry
+            .register(Arc::new(MockProvider {
+                id: "btc2".to_string(),
+                chain_id: "bitcoin".to_string(),
+            }))
+            .unwrap();
 
-        registry.register(Arc::new(MockProvider {
-            id: "eth1".to_string(),
-            chain_id: "ethereum".to_string(),
-        })).unwrap();
+        registry
+            .register(Arc::new(MockProvider {
+                id: "eth1".to_string(),
+                chain_id: "ethereum".to_string(),
+            }))
+            .unwrap();
 
         assert_eq!(registry.for_chain("bitcoin").len(), 2);
         assert_eq!(registry.for_chain("ethereum").len(), 1);
@@ -446,10 +443,12 @@ mod tests {
     #[test]
     fn test_enable_disable() {
         let registry = ProviderRegistry::new();
-        registry.register(Arc::new(MockProvider {
-            id: "test".to_string(),
-            chain_id: "testnet".to_string(),
-        })).unwrap();
+        registry
+            .register(Arc::new(MockProvider {
+                id: "test".to_string(),
+                chain_id: "testnet".to_string(),
+            }))
+            .unwrap();
 
         assert!(registry.get("test").is_some());
 

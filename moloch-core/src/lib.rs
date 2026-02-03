@@ -41,6 +41,7 @@
 //! assert!(block.validate(None).is_ok());
 //! ```
 
+pub mod agent;
 pub mod aligned;
 pub mod arena;
 pub mod block;
@@ -57,12 +58,44 @@ mod proptest;
 // Re-exports for convenience
 pub use aligned::{AlignedHash, AlignedHashArray, CacheLinePadded, CACHE_LINE_SIZE};
 pub use arena::{BatchArena, CanonicalBytesArena, DEFAULT_ARENA_CAPACITY};
-pub use block::{Block, BlockBuilder, BlockHash, BlockHeader, SealerId, compute_events_root, compute_events_root_parallel};
-pub use merkle::{compute_root_optimized, compute_roots_batch, compute_proof, verify_proof};
-pub use crypto::{hash, hash_pair, batch_verify, batch_verify_with_fallback, BatchVerifyResult, Hash, PublicKey, SecretKey, Sig};
+pub use block::{
+    compute_events_root, compute_events_root_parallel, Block, BlockBuilder, BlockHash, BlockHeader,
+    SealerId,
+};
+pub use crypto::{
+    batch_verify, batch_verify_with_fallback, hash, hash_pair, BatchVerifyResult, Hash, PublicKey,
+    SecretKey, Sig,
+};
 pub use error::{Error, Result};
-pub use event::{ActorId, ActorKind, AuditEvent, EventId, EventType, Outcome, ResourceId, ResourceKind};
-pub use proof::{BlockInclusionProof, ConsistencyProof, InclusionProof, MmrProof, Position, ProofNode};
+pub use event::{
+    ActorId, ActorKind, AuditEvent, EventId, EventType, Outcome, ResourceId, ResourceKind,
+};
+pub use merkle::{compute_proof, compute_root_optimized, compute_roots_batch, verify_proof};
+pub use proof::{
+    BlockInclusionProof, ConsistencyProof, InclusionProof, MmrProof, Position, ProofNode,
+};
+
+// Agent accountability types
+pub use agent::{
+    ActionModifications, ActionOutcome, AgentAttestation, AgentAttestationBuilder, Alternative,
+    ApprovalContext, ApprovalDecision, ApprovalPolicy, ApprovalRequest, ApprovalRequestId,
+    ApprovalResponse, ApprovalStatus, AttestationError, AttestationRegistry, Attestor,
+    CancellationActor, Capability, CapabilityBuilder, CapabilityCheck, CapabilityConstraints,
+    CapabilityId, CapabilityKind, CapabilitySet, CapabilitySetId, CausalContext,
+    CausalContextBuilder, Confidence, CoordinatedAction, CoordinatedActionBuilder,
+    CoordinatedActionSpec, CoordinationEvent, CoordinationId, CoordinationMetrics,
+    CoordinationProtocol, CoordinationResult, CoordinationStatus, CoordinationType, Cost,
+    CrossSessionReference, DayOfWeek, Decision, DenialReason, DisputeStatus, DurationMs,
+    EmergencyAction, EmergencyEvent, EmergencyEventBuilder, EmergencyPriority, EmergencyResolution,
+    EmergencyTrigger, EscalationPolicy, Evidence, Factor, FailureHandling, Goal, GoalSource,
+    IdempotencyKey, IdempotencyRecord, ImpactAssessment, OutcomeAttestation,
+    OutcomeAttestationBuilder, OutcomeDispute, Participant, ParticipantRole, PostMortem,
+    PrincipalId, PrincipalKind, Priority, ProposedAction, ProposedActionBuilder, RateLimit,
+    ReasoningStep, ReasoningTrace, ReasoningTraceBuilder, RequiredCapability, Resolution,
+    ResourceScope, Responsibility, RuntimeAttestation, Session, SessionBuilder, SessionEndReason,
+    SessionId, SessionSummary, Severity, StepAction, SuspensionScope, Task, TaskDependency, TaskId,
+    TeeQuote, TeeType, TimeOfDay, TimeWindow, ToolAttestation, TraceId,
+};
 
 /// Batch-verify the signatures of multiple events.
 ///

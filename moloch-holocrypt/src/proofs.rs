@@ -89,7 +89,12 @@ pub enum AssertionType {
     /// Value is in set.
     InSet(Vec<String>),
     /// Numeric value is in range.
-    InRange { min: i64, max: i64 },
+    InRange {
+        /// Minimum value (inclusive).
+        min: i64,
+        /// Maximum value (inclusive).
+        max: i64,
+    },
     /// Value matches pattern.
     Matches(String),
     /// Value exists (non-null).
@@ -140,7 +145,7 @@ impl EventProof {
     }
 
     /// Verify the ZK proof data.
-    fn verify_proof_data(&self, event: &EncryptedEvent) -> Result<bool> {
+    fn verify_proof_data(&self, _event: &EncryptedEvent) -> Result<bool> {
         // Deserialize proof data
         let proof_record: ProofRecord = serde_json::from_slice(&self.proof_data)?;
 
@@ -151,10 +156,8 @@ impl EventProof {
         }
 
         // Verify response matches commitment
-        let expected_response = self.compute_response(
-            &proof_record.commitment,
-            &proof_record.challenge,
-        );
+        let expected_response =
+            self.compute_response(&proof_record.commitment, &proof_record.challenge);
 
         Ok(proof_record.response == expected_response)
     }
@@ -266,14 +269,20 @@ impl EventProofBuilder {
     }
 
     /// Prove actor is in allowed set.
-    pub fn prove_actor_membership(self, allowed: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn prove_actor_membership(
+        self,
+        allowed: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
         self.proof_type(ProofType::ActorMembership {
             allowed_actors: allowed.into_iter().map(Into::into).collect(),
         })
     }
 
     /// Prove resource is in allowed set.
-    pub fn prove_resource_membership(self, allowed: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn prove_resource_membership(
+        self,
+        allowed: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
         self.proof_type(ProofType::ResourceMembership {
             allowed_resources: allowed.into_iter().map(Into::into).collect(),
         })
@@ -316,13 +325,19 @@ impl EventProofBuilder {
 
     /// Build the proof.
     pub fn build(self) -> Result<EventProof> {
-        let event = self.event.clone().ok_or_else(|| HoloCryptError::InvalidConfiguration {
-            reason: "event not set".to_string(),
-        })?;
+        let event = self
+            .event
+            .clone()
+            .ok_or_else(|| HoloCryptError::InvalidConfiguration {
+                reason: "event not set".to_string(),
+            })?;
 
-        let proof_type = self.proof_type.clone().ok_or_else(|| HoloCryptError::InvalidConfiguration {
-            reason: "proof type not set".to_string(),
-        })?;
+        let proof_type =
+            self.proof_type
+                .clone()
+                .ok_or_else(|| HoloCryptError::InvalidConfiguration {
+                    reason: "proof type not set".to_string(),
+                })?;
 
         // Generate commitment
         let commitment = Self::generate_commitment_static(&event, &proof_type);
@@ -492,12 +507,15 @@ impl ProofAggregator {
         }
 
         // Extract proof types
-        let proof_types: Vec<ProofType> = self.proofs.iter().map(|p| p.proof_type.clone()).collect();
+        let proof_types: Vec<ProofType> =
+            self.proofs.iter().map(|p| p.proof_type.clone()).collect();
 
         // Create composite proof
         EventProof::builder()
             .event(event.clone())
-            .proof_type(ProofType::Composite { proofs: proof_types })
+            .proof_type(ProofType::Composite {
+                proofs: proof_types,
+            })
             .build()
     }
 }
@@ -505,9 +523,11 @@ impl ProofAggregator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::encrypted::{EncryptedEventBuilder, EncryptionPolicy, generate_keypair};
+    use crate::encrypted::{generate_keypair, EncryptedEventBuilder, EncryptionPolicy};
     use moloch_core::crypto::SecretKey;
-    use moloch_core::event::{ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind};
+    use moloch_core::event::{
+        ActorId, ActorKind, AuditEvent, EventType, Outcome, ResourceId, ResourceKind,
+    };
 
     fn make_test_event(key: &SecretKey) -> AuditEvent {
         let actor = ActorId::new(key.public_key(), ActorKind::User);

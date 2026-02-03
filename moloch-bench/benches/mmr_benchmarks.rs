@@ -26,7 +26,7 @@ fn bench_mmr_append(c: &mut Criterion) {
     for &size in &batch_sizes {
         let leaves: Vec<_> = (0..size).map(make_leaf).collect();
 
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         // Sequential appending
         group.bench_with_input(
@@ -44,17 +44,13 @@ fn bench_mmr_append(c: &mut Criterion) {
         );
 
         // Batch appending
-        group.bench_with_input(
-            BenchmarkId::new("batch", size),
-            &leaves,
-            |b, leaves| {
-                b.iter(|| {
-                    let mut mmr = Mmr::new(MemStore::new());
-                    mmr.append_batch(black_box(leaves)).unwrap();
-                    mmr.root()
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("batch", size), &leaves, |b, leaves| {
+            b.iter(|| {
+                let mut mmr = Mmr::new(MemStore::new());
+                mmr.append_batch(black_box(leaves)).unwrap();
+                mmr.root()
+            })
+        });
     }
 
     group.finish();
@@ -71,7 +67,7 @@ fn bench_mmr_proof_generation(c: &mut Criterion) {
         let leaves: Vec<_> = (0..size).map(make_leaf).collect();
         let positions = mmr.append_batch(&leaves).unwrap();
 
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         // Sequential proof generation
         group.bench_with_input(
@@ -92,9 +88,7 @@ fn bench_mmr_proof_generation(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("parallel", size),
             &(&mmr, &positions),
-            |b, (mmr, positions)| {
-                b.iter(|| mmr.proof_batch(black_box(positions)).unwrap())
-            },
+            |b, (mmr, positions)| b.iter(|| mmr.proof_batch(black_box(positions)).unwrap()),
         );
     }
 
@@ -113,7 +107,7 @@ fn bench_mmr_verification(c: &mut Criterion) {
         let positions = mmr.append_batch(&leaves).unwrap();
         let proofs = mmr.proof_batch(&positions).unwrap();
 
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         // Sequential verification
         group.bench_with_input(
@@ -132,9 +126,7 @@ fn bench_mmr_verification(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("parallel", size),
             &(&mmr, &proofs),
-            |b, (mmr, proofs)| {
-                b.iter(|| mmr.verify_batch(black_box(proofs)).unwrap())
-            },
+            |b, (mmr, proofs)| b.iter(|| mmr.verify_batch(black_box(proofs)).unwrap()),
         );
     }
 
@@ -152,7 +144,7 @@ fn bench_mmr_proof_range(c: &mut Criterion) {
     mmr.append_batch(&leaves).unwrap();
 
     for &size in &range_sizes {
-        group.throughput(Throughput::Elements(size as u64));
+        group.throughput(Throughput::Elements(size));
 
         // Range proof generation
         group.bench_with_input(
@@ -179,13 +171,9 @@ fn bench_mmr_root(c: &mut Criterion) {
         let leaves: Vec<_> = (0..size).map(make_leaf).collect();
         mmr.append_batch(&leaves).unwrap();
 
-        group.bench_with_input(
-            BenchmarkId::new("compute", size),
-            &mmr,
-            |b, mmr| {
-                b.iter(|| black_box(mmr.root()))
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("compute", size), &mmr, |b, mmr| {
+            b.iter(|| black_box(mmr.root()))
+        });
     }
 
     group.finish();

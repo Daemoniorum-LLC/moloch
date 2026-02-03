@@ -1,0 +1,26 @@
+[package]
+name = "moloch-examples"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[example]]
+name = "basic_event"
+path = "basic_event.rs"
+
+[[example]]
+name = "mmr_proofs"
+path = "mmr_proofs.rs"
+
+[[example]]
+name = "holocrypt_privacy"
+path = "holocrypt_privacy.rs"
+
+[dependencies]
+moloch-core = { path = "../moloch-core" }
+moloch-mmr = { path = "../moloch-mmr" }
+moloch-holocrypt = { path = "../moloch-holocrypt" }
+moloch-chain = { path = "../moloch-chain" }
+
+anyhow = "1.0"
+serde_json = "1.0"

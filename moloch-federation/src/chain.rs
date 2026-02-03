@@ -1,6 +1,6 @@
 //! Chain types and configuration.
 
-use moloch_core::{BlockHash, Hash, PublicKey};
+use moloch_core::{BlockHash, PublicKey};
 use serde::{Deserialize, Serialize};
 
 /// Configuration for registering a chain.
@@ -112,6 +112,7 @@ impl FederatedChain {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use moloch_core::Hash;
 
     #[test]
     fn test_chain_status() {

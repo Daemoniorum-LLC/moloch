@@ -6,10 +6,10 @@
 //! - Expiration (TTL)
 //! - Size limits with eviction
 
-use moloch_core::{AuditEvent, EventId, Result};
 use chrono::{DateTime, Duration, Utc};
-use std::collections::{BinaryHeap, HashMap};
+use moloch_core::{AuditEvent, EventId, Result};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
 
 /// Configuration for the mempool.
 #[derive(Debug, Clone)]
@@ -192,7 +192,10 @@ impl Mempool {
 
         // Rebuild queue without expired entries
         let old_queue = std::mem::take(&mut self.queue);
-        self.queue = old_queue.into_iter().filter(|e| !e.is_expired(ttl)).collect();
+        self.queue = old_queue
+            .into_iter()
+            .filter(|e| !e.is_expired(ttl))
+            .collect();
 
         before - self.len()
     }

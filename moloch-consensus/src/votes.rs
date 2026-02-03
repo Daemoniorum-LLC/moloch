@@ -65,7 +65,14 @@ impl Vote {
         key: &SecretKey,
     ) -> Self {
         let timestamp = Utc::now();
-        let bytes = Self::signing_bytes(height, round, vote_type, block_hash.as_ref(), &voter, timestamp);
+        let bytes = Self::signing_bytes(
+            height,
+            round,
+            vote_type,
+            block_hash.as_ref(),
+            &voter,
+            timestamp,
+        );
         let signature = key.sign(&bytes);
 
         Self {
@@ -284,7 +291,7 @@ impl VoteSet {
         // Add to block hash index
         self.by_block
             .entry(vote.block_hash)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(voter_id);
 
         Ok(true)
@@ -541,7 +548,14 @@ mod tests {
         let mut vote_set = VoteSet::new(10, 0, VoteType::Prevote, validators);
         let block_hash = make_block_hash();
 
-        let vote = Vote::new(10, 0, VoteType::Prevote, Some(block_hash), pubkey.clone(), &key);
+        let vote = Vote::new(
+            10,
+            0,
+            VoteType::Prevote,
+            Some(block_hash),
+            pubkey.clone(),
+            &key,
+        );
         vote_set.add_vote(vote).unwrap();
 
         let vote2 = Vote::new(10, 0, VoteType::Prevote, Some(block_hash), pubkey, &key);
@@ -559,7 +573,14 @@ mod tests {
         let block_hash1 = BlockHash(hash(b"block1"));
         let block_hash2 = BlockHash(hash(b"block2"));
 
-        let vote1 = Vote::new(10, 0, VoteType::Prevote, Some(block_hash1), pubkey.clone(), &key);
+        let vote1 = Vote::new(
+            10,
+            0,
+            VoteType::Prevote,
+            Some(block_hash1),
+            pubkey.clone(),
+            &key,
+        );
         vote_set.add_vote(vote1).unwrap();
 
         let vote2 = Vote::new(10, 0, VoteType::Prevote, Some(block_hash2), pubkey, &key);
@@ -580,7 +601,14 @@ mod tests {
 
         // Add 2 votes (2/3 of 3 validators)
         for (key, _, pubkey) in validators.iter().take(2) {
-            let vote = Vote::new(10, 0, VoteType::Prevote, Some(block_hash), pubkey.clone(), key);
+            let vote = Vote::new(
+                10,
+                0,
+                VoteType::Prevote,
+                Some(block_hash),
+                pubkey.clone(),
+                key,
+            );
             vote_set.add_vote(vote).unwrap();
         }
 
@@ -591,7 +619,14 @@ mod tests {
 
         // Add third vote
         let (key, _, pubkey) = &validators[2];
-        let vote = Vote::new(10, 0, VoteType::Prevote, Some(block_hash), pubkey.clone(), key);
+        let vote = Vote::new(
+            10,
+            0,
+            VoteType::Prevote,
+            Some(block_hash),
+            pubkey.clone(),
+            key,
+        );
         vote_set.add_vote(vote).unwrap();
 
         // Now should have supermajority
@@ -613,7 +648,14 @@ mod tests {
 
         // Add one vote
         let (key, _, pubkey) = &validators[0];
-        let vote = Vote::new(10, 0, VoteType::Prevote, Some(block_hash), pubkey.clone(), key);
+        let vote = Vote::new(
+            10,
+            0,
+            VoteType::Prevote,
+            Some(block_hash),
+            pubkey.clone(),
+            key,
+        );
         vote_set.add_vote(vote).unwrap();
 
         assert_eq!(vote_set.missing_voters().len(), 2);
@@ -645,7 +687,7 @@ mod tests {
 
     #[test]
     fn test_vote_set_unknown_validator() {
-        let (key1, sealer1, _) = make_validator();
+        let (_key1, sealer1, _) = make_validator();
         let (key2, _, pubkey2) = make_validator();
 
         let validators = ValidatorSet::new(vec![sealer1]);
@@ -698,7 +740,14 @@ mod tests {
         let block_hash1 = BlockHash(hash(b"block1"));
         let block_hash2 = BlockHash(hash(b"block2"));
 
-        let vote1 = Vote::new(10, 0, VoteType::Prevote, Some(block_hash1), pubkey.clone(), &key);
+        let vote1 = Vote::new(
+            10,
+            0,
+            VoteType::Prevote,
+            Some(block_hash1),
+            pubkey.clone(),
+            &key,
+        );
         vote_set.add_vote(vote1).unwrap();
 
         let vote2 = Vote::new(10, 0, VoteType::Prevote, Some(block_hash2), pubkey, &key);
@@ -722,12 +771,26 @@ mod tests {
 
         // Vote for block1
         let (key, _, pubkey) = &validators[0];
-        let vote = Vote::new(10, 0, VoteType::Prevote, Some(block_hash1), pubkey.clone(), key);
+        let vote = Vote::new(
+            10,
+            0,
+            VoteType::Prevote,
+            Some(block_hash1),
+            pubkey.clone(),
+            key,
+        );
         vote_set.add_vote(vote).unwrap();
 
         // Two votes for block2
         for (key, _, pubkey) in validators.iter().skip(1) {
-            let vote = Vote::new(10, 0, VoteType::Prevote, Some(block_hash2), pubkey.clone(), key);
+            let vote = Vote::new(
+                10,
+                0,
+                VoteType::Prevote,
+                Some(block_hash2),
+                pubkey.clone(),
+                key,
+            );
             vote_set.add_vote(vote).unwrap();
         }
 
