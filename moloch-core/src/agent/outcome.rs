@@ -3,6 +3,8 @@
 //! Outcome verification confirms that recorded actions actually occurred as described.
 //! It answers: "Did this action actually happen?"
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::crypto::{hash, Hash, PublicKey, SecretKey, Sig};
@@ -86,10 +88,33 @@ impl OutcomeAttestation {
         data
     }
 
-    /// Verify the signature.
+    /// Verify the signature against an arbitrary public key.
+    ///
+    /// **Warning**: This does not check that `public_key` matches the embedded
+    /// [`Attestor`]. Prefer [`verify_against_attestor`](Self::verify_against_attestor)
+    /// which enforces signature-attestor binding.
     pub fn verify_signature(&self, public_key: &PublicKey) -> Result<()> {
         let message = self.canonical_bytes();
         public_key.verify(&message, &self.signature)
+    }
+
+    /// Verify the signature against the attestor's embedded public key.
+    ///
+    /// Unlike [`verify_signature`](Self::verify_signature) which accepts an arbitrary key,
+    /// this method extracts the expected key from the [`Attestor`] and verifies against it,
+    /// ensuring the signature is cryptographically bound to the claimed attestor identity.
+    ///
+    /// Returns an error if:
+    /// - The attestor type does not carry a public key (e.g., `HumanObserver`, `CryptographicProof`)
+    /// - The signature does not verify against the attestor's key
+    pub fn verify_against_attestor(&self) -> Result<()> {
+        let public_key = self.attestor.public_key().ok_or_else(|| {
+            Error::invalid_input(
+                "attestor type does not carry a public key; \
+                 use external verification for HumanObserver/CryptographicProof",
+            )
+        })?;
+        self.verify_signature(public_key)
     }
 
     /// Check if evidence is sufficient for the given severity per rule 8.3.3.
@@ -109,13 +134,28 @@ impl OutcomeAttestation {
                 external_count >= 2
             }
             Severity::Critical => {
-                // Cryptographic proof or human verification required
-                self.evidence.iter().any(|e| {
-                    matches!(
-                        e,
-                        Evidence::ThirdPartyAttestation { .. } | Evidence::Receipt { .. }
-                    )
-                }) || matches!(self.attestor, Attestor::HumanObserver { .. })
+                // Per Section 8.3.3: Critical severity requires independent
+                // third-party verification, not self-referential evidence.
+
+                // Cryptographic third-party attestation always suffices
+                let has_third_party = self
+                    .evidence
+                    .iter()
+                    .any(|e| matches!(e, Evidence::ThirdPartyAttestation { .. }));
+
+                // Human observer always suffices
+                let has_human = matches!(self.attestor, Attestor::HumanObserver { .. });
+
+                // Receipt alone is insufficient (could be self-referential),
+                // but receipt + additional external evidence = corroborated
+                let has_receipt = self
+                    .evidence
+                    .iter()
+                    .any(|e| matches!(e, Evidence::Receipt { .. }));
+                let external_count = self.evidence.iter().filter(|e| e.is_external()).count();
+                let has_corroborated_receipt = has_receipt && external_count >= 2;
+
+                has_third_party || has_human || has_corroborated_receipt
             }
         }
     }
@@ -817,6 +857,53 @@ impl DisputeStatus {
     }
 }
 
+/// In-memory idempotency store with automatic expiration.
+///
+/// Provides insert, lookup, and cleanup for `IdempotencyRecord` values,
+/// keyed by the hash of the associated `IdempotencyKey`. Expired records
+/// are treated as invisible on lookup and can be removed via `cleanup()`.
+#[derive(Debug, Default)]
+pub struct IdempotencyStore {
+    records: HashMap<Hash, IdempotencyRecord>,
+}
+
+impl IdempotencyStore {
+    /// Create an empty store.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Insert a record. Overwrites any existing record with the same key hash.
+    pub fn insert(&mut self, record: IdempotencyRecord) {
+        let key_hash = record.key().hash();
+        self.records.insert(key_hash, record);
+    }
+
+    /// Look up a record by its idempotency key.
+    ///
+    /// Returns `None` if the key is unknown **or** the record has expired.
+    pub fn lookup(&self, key: &IdempotencyKey) -> Option<&IdempotencyRecord> {
+        self.records.get(&key.hash()).filter(|r| !r.is_expired())
+    }
+
+    /// Remove all expired records, returning the number removed.
+    pub fn cleanup(&mut self) -> usize {
+        let before = self.records.len();
+        self.records.retain(|_, r| !r.is_expired());
+        before - self.records.len()
+    }
+
+    /// Number of records (including expired ones not yet cleaned up).
+    pub fn len(&self) -> usize {
+        self.records.len()
+    }
+
+    /// Whether the store is empty.
+    pub fn is_empty(&self) -> bool {
+        self.records.is_empty()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1090,6 +1177,113 @@ mod tests {
         assert!(attestation.is_evidence_sufficient(Severity::Critical));
     }
 
+    // === verify_against_attestor Tests (Phase 1, Finding 1.1) ===
+
+    #[test]
+    fn verify_against_attestor_rejects_key_mismatch() {
+        // OutcomeAttestation signed by real_key but claiming attestor with fake_key
+        // must fail verify_against_attestor()
+        let real_key = test_key();
+        let fake_key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(fake_key.public_key())) // Claims fake
+            .observed_now()
+            .sign(&real_key) // Signed by real
+            .unwrap();
+
+        // Raw verify with real_key passes — this is the vulnerability
+        assert!(attestation.verify_signature(&real_key.public_key()).is_ok());
+
+        // verify_against_attestor must reject: attestor says fake_key, sig is real_key
+        assert!(attestation.verify_against_attestor().is_err());
+    }
+
+    #[test]
+    fn verify_against_attestor_accepts_matching_key() {
+        let key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .observed_now()
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.verify_against_attestor().is_ok());
+    }
+
+    #[test]
+    fn verify_against_attestor_for_human_observer_returns_error() {
+        // HumanObserver has no public key, so attestor-based verify
+        // must return an appropriate error (not silently pass)
+        let key = test_key();
+        let principal = PrincipalId::user("admin@example.com").unwrap();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::human_observer(principal))
+            .observed_now()
+            .sign(&key)
+            .unwrap();
+
+        let result = attestation.verify_against_attestor();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn verify_against_attestor_for_execution_system() {
+        let system_key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::execution_system(
+                "docker",
+                system_key.public_key(),
+            ))
+            .observed_now()
+            .sign(&system_key)
+            .unwrap();
+
+        assert!(attestation.verify_against_attestor().is_ok());
+    }
+
+    #[test]
+    fn verify_against_attestor_for_monitor() {
+        let monitor_key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::monitor("prometheus", monitor_key.public_key()))
+            .observed_now()
+            .sign(&monitor_key)
+            .unwrap();
+
+        assert!(attestation.verify_against_attestor().is_ok());
+    }
+
+    #[test]
+    fn verify_against_attestor_for_cryptographic_proof_returns_error() {
+        // CryptographicProof has no public key, similar to HumanObserver
+        let key = test_key();
+
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::cryptographic_proof("blockchain-anchor"))
+            .observed_now()
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.verify_against_attestor().is_err());
+    }
+
     // === IdempotencyKey Tests ===
 
     #[test]
@@ -1142,6 +1336,119 @@ mod tests {
 
         assert!(!record.is_valid());
         assert!(record.is_expired());
+    }
+
+    // === IdempotencyStore Tests ===
+
+    #[test]
+    fn idempotency_store_insert_and_lookup() {
+        let mut store = IdempotencyStore::new();
+        let key = test_key();
+        let idem_key = IdempotencyKey::new(key.public_key(), "write", "req-1");
+        let record = IdempotencyRecord::new(
+            idem_key.clone(),
+            test_event_id(),
+            ActionOutcome::success(serde_json::json!({})),
+            60000,
+        );
+
+        let expected_event_id = record.original_event_id();
+        store.insert(record);
+        let found = store.lookup(&idem_key);
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().original_event_id(), expected_event_id);
+    }
+
+    #[test]
+    fn idempotency_store_returns_none_for_unknown() {
+        let store = IdempotencyStore::new();
+        let key = test_key();
+        let idem_key = IdempotencyKey::new(key.public_key(), "write", "unknown");
+        assert!(store.lookup(&idem_key).is_none());
+    }
+
+    #[test]
+    fn idempotency_store_expired_records_not_returned() {
+        let mut store = IdempotencyStore::new();
+        let key = test_key();
+        let idem_key = IdempotencyKey::new(key.public_key(), "write", "req-1");
+        let record = IdempotencyRecord::new(
+            idem_key.clone(),
+            test_event_id(),
+            ActionOutcome::success(serde_json::json!({})),
+            -1, // Already expired
+        );
+
+        store.insert(record);
+        assert!(store.lookup(&idem_key).is_none()); // Expired = invisible
+    }
+
+    #[test]
+    fn idempotency_store_cleanup_removes_expired() {
+        let mut store = IdempotencyStore::new();
+        let key = test_key();
+
+        // Insert 3 expired records
+        for i in 0..3 {
+            let idem_key = IdempotencyKey::new(key.public_key(), "write", format!("expired-{}", i));
+            store.insert(IdempotencyRecord::new(
+                idem_key,
+                test_event_id(),
+                ActionOutcome::success(serde_json::json!({})),
+                -1, // Already expired
+            ));
+        }
+
+        // Insert 2 valid records
+        for i in 0..2 {
+            let idem_key = IdempotencyKey::new(key.public_key(), "write", format!("valid-{}", i));
+            store.insert(IdempotencyRecord::new(
+                idem_key,
+                test_event_id(),
+                ActionOutcome::success(serde_json::json!({})),
+                60000, // 1 minute TTL
+            ));
+        }
+
+        assert_eq!(store.len(), 5);
+        let removed = store.cleanup();
+        assert_eq!(removed, 3);
+        assert_eq!(store.len(), 2);
+    }
+
+    #[test]
+    fn idempotency_store_overwrite_existing() {
+        let mut store = IdempotencyStore::new();
+        let key = test_key();
+        let idem_key = IdempotencyKey::new(key.public_key(), "write", "req-1");
+
+        let record1 = IdempotencyRecord::new(
+            idem_key.clone(),
+            test_event_id(),
+            ActionOutcome::success(serde_json::json!({"version": 1})),
+            60000,
+        );
+        store.insert(record1);
+
+        let event2 = EventId(hash(b"second-event"));
+        let record2 = IdempotencyRecord::new(
+            idem_key.clone(),
+            event2,
+            ActionOutcome::success(serde_json::json!({"version": 2})),
+            60000,
+        );
+        store.insert(record2);
+
+        assert_eq!(store.len(), 1);
+        let found = store.lookup(&idem_key).unwrap();
+        assert_eq!(found.original_event_id(), event2);
+    }
+
+    #[test]
+    fn idempotency_store_is_empty() {
+        let store = IdempotencyStore::new();
+        assert!(store.is_empty());
+        assert_eq!(store.len(), 0);
     }
 
     // === OutcomeDispute Tests ===
@@ -1200,5 +1507,147 @@ mod tests {
             resolution_event_id: test_event_id(),
         };
         assert!(upheld.is_resolved());
+    }
+
+    // === Evidence Classification Tests (Finding 4.1) ===
+
+    #[test]
+    fn evidence_receipt_alone_insufficient_for_critical() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::receipt("self-system", vec![1, 2, 3]))
+            .sign(&key)
+            .unwrap();
+
+        assert!(!attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_third_party_attestation_satisfies_critical() {
+        let key = test_key();
+        let third_party_key = SecretKey::generate();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::third_party_attestation(
+                third_party_key.public_key(),
+                vec![1, 2, 3],
+            ))
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_human_observer_satisfies_critical() {
+        let key = test_key();
+        let principal = PrincipalId::user("admin@example.com").unwrap();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::human_observer(principal))
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_receipt_plus_external_confirmation_satisfies_critical() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::receipt("notary-service", vec![1, 2, 3]))
+            .evidence(Evidence::external_confirmation(
+                "monitoring",
+                "check-456",
+                chrono::Utc::now().timestamp_millis(),
+            ))
+            .sign(&key)
+            .unwrap();
+
+        assert!(attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_external_confirmation_alone_insufficient_for_critical() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::external_confirmation(
+                "monitoring",
+                "check-789",
+                chrono::Utc::now().timestamp_millis(),
+            ))
+            .sign(&key)
+            .unwrap();
+
+        // Single external confirmation without third-party attestation
+        // or receipt corroboration is insufficient for Critical
+        assert!(!attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_no_evidence_insufficient_for_critical() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .sign(&key)
+            .unwrap();
+
+        assert!(!attestation.is_evidence_sufficient(Severity::Critical));
+    }
+
+    #[test]
+    fn evidence_low_severity_always_sufficient() {
+        let key = test_key();
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .sign(&key)
+            .unwrap();
+
+        // Self-attestation with no evidence is sufficient for Low
+        assert!(attestation.is_evidence_sufficient(Severity::Low));
+    }
+
+    #[test]
+    fn evidence_medium_requires_external() {
+        let key = test_key();
+
+        // No evidence -> insufficient for Medium
+        let attestation = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .sign(&key)
+            .unwrap();
+        assert!(!attestation.is_evidence_sufficient(Severity::Medium));
+
+        // With external evidence -> sufficient for Medium
+        let attestation2 = OutcomeAttestation::builder()
+            .action_event_id(test_event_id())
+            .outcome(ActionOutcome::success(serde_json::json!({})))
+            .attestor(Attestor::self_attestation(key.public_key()))
+            .evidence(Evidence::external_confirmation(
+                "ci",
+                "run-123",
+                chrono::Utc::now().timestamp_millis(),
+            ))
+            .sign(&key)
+            .unwrap();
+        assert!(attestation2.is_evidence_sufficient(Severity::Medium));
     }
 }

@@ -13,9 +13,15 @@
 //! - [`outcome`] - Outcome verification and attestation
 //! - [`emergency`] - Emergency control actions
 //! - [`coordination`] - Multi-agent coordination
+//! - [`id`] - Generic 16-byte identifier type and macro
+//! - [`timestamp`] - Type-safe millisecond timestamps
+//! - [`audit_bridge`] - Bridge to core audit event system
 
 pub mod attestation;
+pub mod audit_bridge;
 pub mod capability;
+#[macro_use]
+pub mod id;
 pub mod causality;
 pub mod coordination;
 pub mod emergency;
@@ -25,16 +31,18 @@ pub mod principal;
 pub mod reasoning;
 pub mod registry;
 pub mod session;
+pub mod timestamp;
 
 // Re-exports
 pub use attestation::{
     AgentAttestation, AgentAttestationBuilder, AttestationError, RequiredCapability,
     RuntimeAttestation, TeeQuote, TeeType, ToolAttestation,
 };
+pub use audit_bridge::{AgentAuditEventBuilder, AgentEventMetadata};
 pub use capability::{
     Capability, CapabilityBuilder, CapabilityCheck, CapabilityConstraints, CapabilityId,
-    CapabilityKind, CapabilitySet, CapabilitySetId, DayOfWeek, DenialReason, RateLimit,
-    ResourceScope, TimeOfDay, TimeWindow,
+    CapabilityKind, CapabilitySet, CapabilitySetId, CapabilityState, DayOfWeek, DenialReason,
+    RateLimit, ResourceScope, TimeOfDay, TimeWindow,
 };
 pub use causality::{CausalContext, CausalContextBuilder, CrossSessionReference};
 pub use coordination::{
@@ -52,9 +60,10 @@ pub use hitl::{
     ApprovalRequestId, ApprovalResponse, ApprovalStatus, CancellationActor, Cost, EscalationPolicy,
     ImpactAssessment, ProposedAction, ProposedActionBuilder, Severity,
 };
+pub use id::Id16;
 pub use outcome::{
     ActionOutcome, Attestor, DisputeStatus, Evidence, IdempotencyKey, IdempotencyRecord,
-    OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute,
+    IdempotencyStore, OutcomeAttestation, OutcomeAttestationBuilder, OutcomeDispute,
 };
 pub use principal::{PrincipalId, PrincipalKind};
 pub use reasoning::{
@@ -63,3 +72,4 @@ pub use reasoning::{
 };
 pub use registry::AttestationRegistry;
 pub use session::{Session, SessionBuilder, SessionEndReason, SessionId, SessionSummary};
+pub use timestamp::Timestamp;

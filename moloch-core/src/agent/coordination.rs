@@ -255,6 +255,26 @@ impl Participant {
         }
     }
 
+    /// Create a new participant with a commitment signature.
+    ///
+    /// This is the preferred constructor. The `commitment` should be a signature
+    /// over the [`CoordinatedActionSpec::canonical_bytes()`] using the agent's secret key,
+    /// per INV-COORD-2.
+    pub fn with_commitment(
+        agent: PublicKey,
+        role: ParticipantRole,
+        responsibility: Responsibility,
+        commitment: Sig,
+    ) -> Self {
+        Self {
+            agent,
+            role,
+            capabilities: Vec::new(),
+            responsibility,
+            commitment,
+        }
+    }
+
     /// Add capabilities.
     pub fn with_capabilities(mut self, capabilities: Vec<CapabilityId>) -> Self {
         self.capabilities = capabilities;
@@ -289,6 +309,18 @@ impl Participant {
     /// Check if this participant is the coordinator.
     pub fn is_coordinator(&self) -> bool {
         matches!(self.role, ParticipantRole::Coordinator)
+    }
+
+    /// Verify that this participant's commitment is a valid signature
+    /// over the given action specification, using the participant's own agent key.
+    ///
+    /// Enforces INV-COORD-2: every participant's commitment must cryptographically
+    /// verify against the coordination's action specification.
+    pub fn verify_commitment(&self, spec: &CoordinatedActionSpec) -> Result<()> {
+        let message = spec.canonical_bytes();
+        self.agent.verify(&message, &self.commitment).map_err(|_| {
+            Error::invalid_input("participant commitment does not verify against spec")
+        })
     }
 }
 
@@ -419,7 +451,7 @@ pub struct CoordinatedActionSpec {
     /// What the group is trying to accomplish.
     goal: String,
     /// Sub-tasks assigned to each participant.
-    tasks: HashMap<String, Vec<Task>>, // Key is hex-encoded public key
+    tasks: HashMap<PublicKey, Vec<Task>>,
     /// Dependencies between tasks.
     dependencies: Vec<TaskDependency>,
     /// Success criteria for the coordination.
@@ -442,7 +474,7 @@ impl CoordinatedActionSpec {
 
     /// Add tasks for a participant.
     pub fn with_tasks(mut self, agent: &PublicKey, tasks: Vec<Task>) -> Self {
-        self.tasks.insert(hex::encode(agent.as_bytes()), tasks);
+        self.tasks.insert(agent.clone(), tasks);
         self
     }
 
@@ -471,9 +503,7 @@ impl CoordinatedActionSpec {
 
     /// Get tasks for a participant.
     pub fn tasks_for(&self, agent: &PublicKey) -> Option<&[Task]> {
-        self.tasks
-            .get(&hex::encode(agent.as_bytes()))
-            .map(|v| v.as_slice())
+        self.tasks.get(agent).map(|v| v.as_slice())
     }
 
     /// Get all tasks.
@@ -496,10 +526,14 @@ impl CoordinatedActionSpec {
         &self.failure_handling
     }
 
+    /// Compute canonical bytes for commitment signing and verification.
+    pub fn canonical_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(self).unwrap_or_default()
+    }
+
     /// Compute a hash of this spec for signing.
     pub fn hash(&self) -> Hash {
-        let json = serde_json::to_vec(self).unwrap_or_default();
-        hash(&json)
+        hash(&self.canonical_bytes())
     }
 }
 
@@ -554,8 +588,8 @@ impl CoordinationProtocol {
 pub struct CoordinationMetrics {
     /// Total duration in milliseconds.
     total_duration: DurationMs,
-    /// Per-agent duration (key is hex-encoded public key).
-    per_agent_duration: HashMap<String, DurationMs>,
+    /// Per-agent duration.
+    per_agent_duration: HashMap<PublicKey, DurationMs>,
     /// Communication overhead in milliseconds.
     communication_overhead: DurationMs,
     /// Number of retries.
@@ -575,8 +609,7 @@ impl CoordinationMetrics {
 
     /// Set agent duration.
     pub fn with_agent_duration(mut self, agent: &PublicKey, duration: DurationMs) -> Self {
-        self.per_agent_duration
-            .insert(hex::encode(agent.as_bytes()), duration);
+        self.per_agent_duration.insert(agent.clone(), duration);
         self
     }
 
@@ -599,9 +632,7 @@ impl CoordinationMetrics {
 
     /// Get agent duration.
     pub fn agent_duration(&self, agent: &PublicKey) -> Option<DurationMs> {
-        self.per_agent_duration
-            .get(&hex::encode(agent.as_bytes()))
-            .copied()
+        self.per_agent_duration.get(agent).copied()
     }
 
     /// Get communication overhead.
@@ -620,8 +651,8 @@ impl CoordinationMetrics {
 pub struct CoordinationResult {
     /// Overall outcome.
     outcome: ActionOutcome,
-    /// Per-agent outcomes (key is hex-encoded public key).
-    agent_outcomes: HashMap<String, ActionOutcome>,
+    /// Per-agent outcomes.
+    agent_outcomes: HashMap<PublicKey, ActionOutcome>,
     /// Combined output.
     output: serde_json::Value,
     /// Coordination metrics.
@@ -645,8 +676,7 @@ impl CoordinationResult {
 
     /// Add an agent outcome.
     pub fn with_agent_outcome(mut self, agent: &PublicKey, outcome: ActionOutcome) -> Self {
-        self.agent_outcomes
-            .insert(hex::encode(agent.as_bytes()), outcome);
+        self.agent_outcomes.insert(agent.clone(), outcome);
         self
     }
 
@@ -657,7 +687,7 @@ impl CoordinationResult {
 
     /// Get agent outcome.
     pub fn agent_outcome(&self, agent: &PublicKey) -> Option<&ActionOutcome> {
-        self.agent_outcomes.get(&hex::encode(agent.as_bytes()))
+        self.agent_outcomes.get(agent)
     }
 
     /// Get the output.
@@ -858,6 +888,19 @@ impl CoordinatedAction {
         Ok(())
     }
 
+    /// Validate that all participant commitments verify against the action spec per INV-COORD-2.
+    pub fn validate_commitments(&self) -> Result<()> {
+        for (i, participant) in self.participants.iter().enumerate() {
+            participant.verify_commitment(&self.action).map_err(|_| {
+                Error::invalid_input(format!(
+                    "participant {} commitment does not verify against action spec",
+                    i
+                ))
+            })?;
+        }
+        Ok(())
+    }
+
     /// Validate that shared responsibility sums to 1.0 per rule 10.3.3.
     pub fn validate_responsibility(&self) -> Result<()> {
         let shared_sum: f64 = self
@@ -1001,6 +1044,16 @@ impl CoordinatedActionBuilder {
 
         Ok(coordination)
     }
+
+    /// Build with full commitment verification per INV-COORD-2.
+    ///
+    /// Like [`build`](Self::build), but additionally validates that every participant's
+    /// commitment signature verifies against the action specification.
+    pub fn build_verified(self) -> Result<CoordinatedAction> {
+        let coordination = self.build()?;
+        coordination.validate_commitments()?;
+        Ok(coordination)
+    }
 }
 
 /// Event recording coordination lifecycle.
@@ -1058,8 +1111,8 @@ pub enum CoordinationEvent {
         agents: Vec<PublicKey>,
         /// Subject of disagreement.
         subject: String,
-        /// Positions (key is hex-encoded public key).
-        positions: HashMap<String, String>,
+        /// Positions held by each agent.
+        positions: HashMap<PublicKey, String>,
     },
     /// Coordination completed.
     Completed {
@@ -1459,6 +1512,147 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // === Commitment Verification Tests (Phase 1, Finding 1.2) ===
+
+    #[test]
+    fn participant_commitment_verifies_against_spec() {
+        let key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy-service");
+
+        // Create participant with proper commitment (signature over spec)
+        let spec_bytes = spec.canonical_bytes();
+        let commitment = key.sign(&spec_bytes);
+        let participant = Participant::with_commitment(
+            key.public_key(),
+            ParticipantRole::Coordinator,
+            Responsibility::individual(),
+            commitment,
+        );
+
+        assert!(participant.verify_commitment(&spec).is_ok());
+    }
+
+    #[test]
+    fn participant_commitment_wrong_spec_rejected() {
+        let key = test_key();
+        let spec_a = CoordinatedActionSpec::new("deploy-service");
+        let spec_b = CoordinatedActionSpec::new("rollback-service");
+
+        let commitment = key.sign(&spec_a.canonical_bytes());
+        let participant = Participant::with_commitment(
+            key.public_key(),
+            ParticipantRole::Peer,
+            Responsibility::individual(),
+            commitment,
+        );
+
+        // Commitment was for spec_a, verifying against spec_b must fail
+        assert!(participant.verify_commitment(&spec_b).is_err());
+    }
+
+    #[test]
+    fn participant_commitment_wrong_key_rejected() {
+        let real_key = test_key();
+        let wrong_key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy-service");
+
+        let commitment = real_key.sign(&spec.canonical_bytes());
+        let participant = Participant::with_commitment(
+            wrong_key.public_key(), // Claims wrong_key identity
+            ParticipantRole::Peer,
+            Responsibility::individual(),
+            commitment, // Signed by real_key
+        );
+
+        // Agent key doesn't match the commitment signer
+        assert!(participant.verify_commitment(&spec).is_err());
+    }
+
+    #[test]
+    fn participant_empty_commitment_rejected() {
+        let key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy-service");
+
+        // Using Sig::empty() as commitment should fail verification
+        let participant = Participant::new(
+            key.public_key(),
+            ParticipantRole::Coordinator,
+            Responsibility::individual(),
+            Sig::empty(),
+        );
+
+        assert!(participant.verify_commitment(&spec).is_err());
+    }
+
+    #[test]
+    fn coordinated_action_build_verified_validates_commitments() {
+        let coord_key = test_key();
+        let peer_key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy");
+
+        let coord_commitment = coord_key.sign(&spec.canonical_bytes());
+        let p1 = Participant::with_commitment(
+            coord_key.public_key(),
+            ParticipantRole::Coordinator,
+            Responsibility::individual(),
+            coord_commitment,
+        );
+
+        // Peer has empty (invalid) commitment
+        let p2 = Participant::new(
+            peer_key.public_key(),
+            ParticipantRole::Peer,
+            Responsibility::individual(),
+            Sig::empty(),
+        );
+
+        let result = CoordinatedAction::builder()
+            .coordination_type(CoordinationType::Supervised)
+            .participant(p1)
+            .participant(p2)
+            .action(spec)
+            .protocol(CoordinationProtocol::TwoPhaseCommit)
+            .causal_context(test_causal_context())
+            .build_verified();
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn coordinated_action_build_verified_succeeds_with_valid_commitments() {
+        let coord_key = test_key();
+        let peer_key = test_key();
+        let spec = CoordinatedActionSpec::new("deploy");
+
+        let coord_commitment = coord_key.sign(&spec.canonical_bytes());
+        let peer_commitment = peer_key.sign(&spec.canonical_bytes());
+
+        let p1 = Participant::with_commitment(
+            coord_key.public_key(),
+            ParticipantRole::Coordinator,
+            Responsibility::individual(),
+            coord_commitment,
+        );
+
+        let p2 = Participant::with_commitment(
+            peer_key.public_key(),
+            ParticipantRole::Peer,
+            Responsibility::individual(),
+            peer_commitment,
+        );
+
+        let result = CoordinatedAction::builder()
+            .coordination_type(CoordinationType::Parallel)
+            .participant(p1)
+            .participant(p2)
+            .action(spec)
+            .protocol(CoordinationProtocol::TwoPhaseCommit)
+            .causal_context(test_causal_context())
+            .build_verified();
+
+        assert!(result.is_ok());
+    }
+
     // === CoordinationEvent Tests ===
 
     #[test]
@@ -1558,5 +1752,56 @@ mod tests {
         assert_eq!(metrics.agent_duration(&key.public_key()), Some(5000));
         assert_eq!(metrics.communication_overhead(), 500);
         assert_eq!(metrics.retry_count(), 2);
+    }
+
+    // === Phase 9: Type-safe key lookups ===
+
+    #[test]
+    fn coordination_task_lookup_by_public_key() {
+        let key = test_key();
+        let task = Task::new("deploy-service");
+        let spec = CoordinatedActionSpec::new("deploy").with_tasks(&key.public_key(), vec![task]);
+
+        let tasks = spec.tasks_for(&key.public_key());
+        assert!(tasks.is_some());
+        assert_eq!(tasks.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn coordination_task_lookup_different_key_returns_none() {
+        let key1 = test_key();
+        let key2 = test_key();
+        let task = Task::new("deploy-service");
+        let spec = CoordinatedActionSpec::new("deploy").with_tasks(&key1.public_key(), vec![task]);
+
+        assert!(spec.tasks_for(&key2.public_key()).is_none());
+    }
+
+    #[test]
+    fn coordination_result_agent_outcome_by_public_key() {
+        let key1 = test_key();
+        let key2 = test_key();
+        let result = CoordinationResult::new(
+            ActionOutcome::success(serde_json::json!({})),
+            serde_json::json!({}),
+            CoordinationMetrics::new(1000),
+        )
+        .with_agent_outcome(
+            &key1.public_key(),
+            ActionOutcome::success(serde_json::json!({})),
+        );
+
+        assert!(result.agent_outcome(&key1.public_key()).is_some());
+        assert!(result.agent_outcome(&key2.public_key()).is_none());
+    }
+
+    #[test]
+    fn coordination_metrics_agent_duration_by_public_key() {
+        let key1 = test_key();
+        let key2 = test_key();
+        let metrics = CoordinationMetrics::new(5000).with_agent_duration(&key1.public_key(), 3000);
+
+        assert_eq!(metrics.agent_duration(&key1.public_key()), Some(3000));
+        assert_eq!(metrics.agent_duration(&key2.public_key()), None);
     }
 }

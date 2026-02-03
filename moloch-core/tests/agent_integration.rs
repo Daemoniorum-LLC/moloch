@@ -136,7 +136,7 @@ fn integration_complete_agent_action_flow() {
         .sign(&agent_key)
         .unwrap();
 
-    assert!(outcome.verify_signature(&agent_key.public_key()).is_ok());
+    assert!(outcome.verify_against_attestor().is_ok());
     assert!(outcome.is_evidence_sufficient(Severity::Low));
 }
 
@@ -193,7 +193,7 @@ fn integration_hitl_approval_flow() {
     // 4. Simulate approval response
     let response = ApprovalResponse::new(request.id(), principal, ApprovalDecision::Approve);
 
-    assert!(matches!(response.decision, ApprovalDecision::Approve));
+    assert!(response.decision().is_approval());
 }
 
 // === Scenario 3: Multi-Agent Coordination ===
@@ -205,26 +205,26 @@ fn integration_multi_agent_coordination() {
     let peer_key = test_key();
     let principal = test_principal();
 
-    // 1. Create participants
-    let coordinator = Participant::new(
-        coordinator_key.public_key(),
-        ParticipantRole::Coordinator,
-        Responsibility::shared(0.6),
-        moloch_core::Sig::empty(), // Commitment signature
-    );
-
-    let peer = Participant::new(
-        peer_key.public_key(),
-        ParticipantRole::Peer,
-        Responsibility::shared(0.4), // Shares sum to 1.0
-        moloch_core::Sig::empty(),
-    );
-
-    // 2. Create action specification
+    // 1. Create action specification first (needed for commitment signing)
     let spec = CoordinatedActionSpec::new("Process data pipeline")
         .with_criterion("All steps complete without error")
         .with_criterion("Output matches expected format")
         .with_failure_handling(FailureHandling::Retry { max_attempts: 3 });
+
+    // 2. Create participants with valid commitments over the spec
+    let coordinator = Participant::with_commitment(
+        coordinator_key.public_key(),
+        ParticipantRole::Coordinator,
+        Responsibility::shared(0.6),
+        coordinator_key.sign(&spec.canonical_bytes()),
+    );
+
+    let peer = Participant::with_commitment(
+        peer_key.public_key(),
+        ParticipantRole::Peer,
+        Responsibility::shared(0.4), // Shares sum to 1.0
+        peer_key.sign(&spec.canonical_bytes()),
+    );
 
     // 3. Create causal context
     let causal_context = CausalContextBuilder::new()
@@ -236,7 +236,7 @@ fn integration_multi_agent_coordination() {
         .build()
         .unwrap();
 
-    // 4. Build coordinated action
+    // 4. Build coordinated action with commitment verification
     let coordination = CoordinatedAction::builder()
         .coordination_type(CoordinationType::Pipeline)
         .participant(coordinator)
@@ -245,7 +245,7 @@ fn integration_multi_agent_coordination() {
         .protocol(CoordinationProtocol::LeaderFollower)
         .causal_context(causal_context)
         .started_now()
-        .build()
+        .build_verified()
         .unwrap();
 
     // Verify coordinator requirement

@@ -491,6 +491,17 @@ impl CapabilityConstraints {
     }
 }
 
+/// Lifecycle state of a capability per Section 5.4.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CapabilityState {
+    /// Capability is currently valid and usable.
+    Active,
+    /// Capability has passed its expiry time.
+    Expired,
+    /// Capability was explicitly revoked.
+    Revoked,
+}
+
 /// A specific permission granted to an agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Capability {
@@ -520,6 +531,22 @@ pub struct Capability {
 
     /// Maximum delegation depth.
     max_delegation_depth: u32,
+
+    /// Current delegation depth (0 for root capabilities).
+    #[serde(default)]
+    delegation_depth: u32,
+
+    /// Parent capability ID (for delegated capabilities).
+    #[serde(default)]
+    parent_capability_id: Option<CapabilityId>,
+
+    /// When this capability was revoked (Unix timestamp ms).
+    #[serde(default)]
+    revoked_at: Option<i64>,
+
+    /// Reason for revocation.
+    #[serde(default)]
+    revocation_reason: Option<String>,
 
     /// Signature from grantor.
     signature: Sig,
@@ -586,8 +613,59 @@ impl Capability {
         &self.signature
     }
 
+    /// Get the current delegation depth (0 for root capabilities).
+    pub fn delegation_depth(&self) -> u32 {
+        self.delegation_depth
+    }
+
+    /// Get the parent capability ID (for delegated capabilities).
+    pub fn parent_capability_id(&self) -> Option<CapabilityId> {
+        self.parent_capability_id
+    }
+
+    /// Revoke this capability with a reason.
+    pub fn revoke(&mut self, reason: impl Into<String>) {
+        self.revoked_at = Some(chrono::Utc::now().timestamp_millis());
+        self.revocation_reason = Some(reason.into());
+    }
+
+    /// Check if this capability has been revoked.
+    pub fn is_revoked(&self) -> bool {
+        self.revoked_at.is_some()
+    }
+
+    /// Get the revocation timestamp if revoked.
+    pub fn revoked_at(&self) -> Option<i64> {
+        self.revoked_at
+    }
+
+    /// Get the revocation reason if revoked.
+    pub fn revocation_reason(&self) -> Option<&str> {
+        self.revocation_reason.as_deref()
+    }
+
+    /// Get the lifecycle state at a given time per Section 5.4.
+    pub fn lifecycle_state(&self, now_ms: i64) -> CapabilityState {
+        if self.is_revoked() {
+            CapabilityState::Revoked
+        } else if let Some(exp) = self.expires_at {
+            if now_ms >= exp {
+                CapabilityState::Expired
+            } else {
+                CapabilityState::Active
+            }
+        } else {
+            CapabilityState::Active
+        }
+    }
+
     /// Check if this capability is valid at a given time.
+    ///
+    /// A capability is valid if it is not revoked and not expired.
     pub fn is_valid_at(&self, timestamp: i64) -> bool {
+        if self.is_revoked() {
+            return false;
+        }
         match self.expires_at {
             Some(exp) => timestamp < exp,
             None => true, // Never expires
@@ -616,12 +694,120 @@ impl Capability {
         }
         data.push(if self.delegatable { 1 } else { 0 });
         data.extend_from_slice(&self.max_delegation_depth.to_le_bytes());
+        data.extend_from_slice(&self.delegation_depth.to_le_bytes());
+        if let Some(parent_id) = &self.parent_capability_id {
+            data.extend_from_slice(&parent_id.0);
+        }
         data
     }
 
     /// Compute the hash of this capability.
     pub fn hash(&self) -> Hash {
         hash(&self.canonical_bytes())
+    }
+
+    /// Delegate this capability to another agent, creating a child capability.
+    ///
+    /// Enforces:
+    /// - INV-CAP-3: child scope must be a subset of parent scope, child expiry must not exceed parent
+    /// - INV-CAP-4: delegation depth must not exceed max_delegation_depth
+    /// - Rule 5.3.3: delegated capabilities must be a subset of the delegator's
+    pub fn delegate(
+        &self,
+        delegator_key: &SecretKey,
+        scope: Option<ResourceScope>,
+        expiry: Option<Duration>,
+    ) -> Result<Capability> {
+        if !self.delegatable {
+            return Err(Error::invalid_input("capability is not delegatable"));
+        }
+
+        if self.delegation_depth + 1 > self.max_delegation_depth {
+            return Err(Error::invalid_input(format!(
+                "delegation depth {} would exceed max {}",
+                self.delegation_depth + 1,
+                self.max_delegation_depth
+            )));
+        }
+
+        // Determine child scope (must be subset of parent)
+        let child_scope = match scope {
+            Some(s) => {
+                if !Self::is_scope_subset(&s, &self.scope) {
+                    return Err(Error::invalid_input(
+                        "child scope must be a subset of parent scope",
+                    ));
+                }
+                s
+            }
+            None => self.scope.clone(),
+        };
+
+        // Determine child expiry (must not exceed parent)
+        let child_expires_at = match expiry {
+            Some(dur) => {
+                let now = chrono::Utc::now().timestamp_millis();
+                let proposed = now + dur.as_millis() as i64;
+                if let Some(parent_exp) = self.expires_at {
+                    if proposed > parent_exp {
+                        return Err(Error::invalid_input(
+                            "child expiry must not exceed parent expiry",
+                        ));
+                    }
+                }
+                Some(proposed)
+            }
+            None => self.expires_at,
+        };
+
+        let mut child = Capability {
+            id: CapabilityId::generate(),
+            kind: self.kind.clone(),
+            scope: child_scope,
+            constraints: CapabilityConstraints::default(),
+            grantor: self.grantor.clone(),
+            granted_at: chrono::Utc::now().timestamp_millis(),
+            expires_at: child_expires_at,
+            delegatable: self.delegatable,
+            max_delegation_depth: self.max_delegation_depth,
+            delegation_depth: self.delegation_depth + 1,
+            parent_capability_id: Some(self.id),
+            revoked_at: None,
+            revocation_reason: None,
+            signature: Sig::empty(),
+        };
+
+        let canonical = child.canonical_bytes();
+        child.signature = delegator_key.sign(&canonical);
+
+        Ok(child)
+    }
+
+    /// Check if `child` scope is a subset of `parent` scope.
+    fn is_scope_subset(child: &ResourceScope, parent: &ResourceScope) -> bool {
+        match (child, parent) {
+            // All is only a subset of All
+            (ResourceScope::All, ResourceScope::All) => true,
+            (ResourceScope::All, _) => false,
+            // Everything is a subset of All
+            (_, ResourceScope::All) => true,
+            // Specific is subset of Specific if equal
+            (ResourceScope::Specific { resource: c }, ResourceScope::Specific { resource: p }) => {
+                c == p
+            }
+            // Specific is subset of Pattern if it matches the pattern
+            (ResourceScope::Specific { resource: c }, ResourceScope::Pattern { pattern: p }) => {
+                p.ends_with('*') && c.starts_with(&p[..p.len() - 1]) || c == p
+            }
+            // Pattern is subset of Pattern if child is more specific
+            (ResourceScope::Pattern { pattern: c }, ResourceScope::Pattern { pattern: p }) => {
+                p.ends_with('*') && c.starts_with(&p[..p.len() - 1]) || c == p
+            }
+            // Kind is subset of Kind if equal
+            (ResourceScope::Kind { kind: c }, ResourceScope::Kind { kind: p }) => c == p,
+            // Cross-type: generally not a subset
+            _ => false,
+        }
     }
 }
 
@@ -732,6 +918,10 @@ impl CapabilityBuilder {
             expires_at: self.expires_at,
             delegatable: self.delegatable,
             max_delegation_depth: self.max_delegation_depth,
+            delegation_depth: 0,
+            parent_capability_id: None,
+            revoked_at: None,
+            revocation_reason: None,
             signature: Sig::empty(),
         };
 
@@ -886,6 +1076,13 @@ impl CapabilitySet {
             // Check if capability matches the action
             if !cap.matches(action_kind, resource) {
                 continue;
+            }
+
+            // Check revocation before expiry
+            if cap.is_revoked() {
+                return CapabilityCheck::Denied {
+                    reason: DenialReason::Revoked,
+                };
             }
 
             // Check expiry
@@ -1505,5 +1702,399 @@ mod tests {
             end_of_day.seconds_since_midnight(),
             23 * 3600 + 59 * 60 + 59
         );
+    }
+
+    // === Capability Revocation Tests (Finding 2.1) ===
+
+    #[test]
+    fn capability_revoke_transitions_to_revoked() {
+        let key = SecretKey::generate();
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .sign(&key)
+            .unwrap();
+
+        assert!(!cap.is_revoked());
+        cap.revoke("policy violation");
+        assert!(cap.is_revoked());
+    }
+
+    #[test]
+    fn capability_revoked_at_recorded() {
+        let key = SecretKey::generate();
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .sign(&key)
+            .unwrap();
+
+        assert!(cap.revoked_at().is_none());
+        let before = chrono::Utc::now().timestamp_millis();
+        cap.revoke("test");
+        let after = chrono::Utc::now().timestamp_millis();
+
+        let ts = cap.revoked_at().expect("revoked_at should be set");
+        assert!(ts >= before && ts <= after);
+    }
+
+    #[test]
+    fn capability_revocation_reason_preserved() {
+        let key = SecretKey::generate();
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Write)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .sign(&key)
+            .unwrap();
+
+        cap.revoke("agent exceeded spending limit");
+        assert_eq!(
+            cap.revocation_reason(),
+            Some("agent exceeded spending limit")
+        );
+    }
+
+    #[test]
+    fn capability_lifecycle_states() {
+        let key = SecretKey::generate();
+        let now = chrono::Utc::now().timestamp_millis();
+
+        // Active: not expired, not revoked
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .expires_at(now + 60_000) // 1 minute from now
+            .sign(&key)
+            .unwrap();
+        assert_eq!(cap.lifecycle_state(now), CapabilityState::Active);
+
+        // Expired: past expiry
+        assert_eq!(cap.lifecycle_state(now + 120_000), CapabilityState::Expired);
+
+        // Revoked: explicitly revoked (takes precedence over active)
+        let mut cap2 = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .expires_at(now + 60_000)
+            .sign(&key)
+            .unwrap();
+        cap2.revoke("security incident");
+        assert_eq!(cap2.lifecycle_state(now), CapabilityState::Revoked);
+    }
+
+    #[test]
+    fn capability_revoked_is_invalid() {
+        let key = SecretKey::generate();
+        let now = chrono::Utc::now().timestamp_millis();
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .expires_at(now + 60_000)
+            .sign(&key)
+            .unwrap();
+
+        assert!(cap.is_valid_at(now));
+        cap.revoke("compromised");
+        assert!(!cap.is_valid_at(now));
+    }
+
+    // === Delegation Chain Tests (Finding 2.2) ===
+
+    #[test]
+    fn delegate_creates_child_capability() {
+        let key = SecretKey::generate();
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::pattern("repository:org/*"))
+            .grantor(test_grantor())
+            .delegatable(3)
+            .sign(&key)
+            .unwrap();
+
+        let child = cap.delegate(&key, None, None).unwrap();
+
+        assert_eq!(child.delegation_depth(), 1);
+        assert_eq!(child.parent_capability_id(), Some(cap.id()));
+        assert!(child.kind().matches(&CapabilityKind::Read));
+        assert_ne!(child.id(), cap.id());
+    }
+
+    #[test]
+    fn delegate_rejects_exceeding_max_depth() {
+        let key = SecretKey::generate();
+        // Create a capability with max_delegation_depth = 1
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .delegatable(1)
+            .sign(&key)
+            .unwrap();
+
+        // First delegation (depth 0 -> 1): OK
+        let child = cap.delegate(&key, None, None).unwrap();
+        assert_eq!(child.delegation_depth(), 1);
+
+        // Second delegation (depth 1 -> 2): exceeds max 1
+        let err = child.delegate(&key, None, None).unwrap_err();
+        assert!(err.to_string().contains("delegation depth"));
+    }
+
+    #[test]
+    fn delegate_scope_must_be_subset() {
+        let key = SecretKey::generate();
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::pattern("repository:org/*"))
+            .grantor(test_grantor())
+            .delegatable(3)
+            .sign(&key)
+            .unwrap();
+
+        // Valid subset: specific resource under the pattern
+        let child = cap.delegate(
+            &key,
+            Some(ResourceScope::specific("repository:org/project")),
+            None,
+        );
+        assert!(child.is_ok());
+
+        // Invalid: broader scope (All > Pattern)
+        let err = cap
+            .delegate(&key, Some(ResourceScope::all()), None)
+            .unwrap_err();
+        assert!(err.to_string().contains("subset"));
+    }
+
+    #[test]
+    fn delegate_expiry_must_not_exceed_parent() {
+        let key = SecretKey::generate();
+        let now = chrono::Utc::now().timestamp_millis();
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .delegatable(3)
+            .expires_at(now + 10_000) // expires in 10 seconds
+            .sign(&key)
+            .unwrap();
+
+        // Requesting 60 seconds expiry exceeds parent's 10 second remaining
+        let err = cap
+            .delegate(&key, None, Some(Duration::from_secs(60)))
+            .unwrap_err();
+        assert!(err.to_string().contains("expiry"));
+
+        // Requesting 5 seconds should succeed
+        let child = cap.delegate(&key, None, Some(Duration::from_secs(5)));
+        assert!(child.is_ok());
+    }
+
+    #[test]
+    fn delegate_non_delegatable_capability_fails() {
+        let key = SecretKey::generate();
+        // Default delegatable is false
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .sign(&key)
+            .unwrap();
+
+        assert!(!cap.is_delegatable());
+        let err = cap.delegate(&key, None, None).unwrap_err();
+        assert!(err.to_string().contains("not delegatable"));
+    }
+
+    #[test]
+    fn is_scope_subset_correctness() {
+        // All is subset of All
+        assert!(Capability::is_scope_subset(
+            &ResourceScope::All,
+            &ResourceScope::All
+        ));
+
+        // All is NOT subset of Pattern
+        assert!(!Capability::is_scope_subset(
+            &ResourceScope::All,
+            &ResourceScope::pattern("repo:*")
+        ));
+
+        // Specific is subset of All
+        assert!(Capability::is_scope_subset(
+            &ResourceScope::specific("repo:a"),
+            &ResourceScope::All
+        ));
+
+        // Specific is subset of matching Pattern
+        assert!(Capability::is_scope_subset(
+            &ResourceScope::specific("repo:org/project"),
+            &ResourceScope::pattern("repo:org/*")
+        ));
+
+        // Specific is NOT subset of non-matching Pattern
+        assert!(!Capability::is_scope_subset(
+            &ResourceScope::specific("repo:other/project"),
+            &ResourceScope::pattern("repo:org/*")
+        ));
+
+        // Equal specific scopes
+        assert!(Capability::is_scope_subset(
+            &ResourceScope::specific("repo:a"),
+            &ResourceScope::specific("repo:a")
+        ));
+
+        // Different specific scopes
+        assert!(!Capability::is_scope_subset(
+            &ResourceScope::specific("repo:a"),
+            &ResourceScope::specific("repo:b")
+        ));
+    }
+
+    #[test]
+    fn capability_set_denies_revoked() {
+        let key = SecretKey::generate();
+        let grantor = test_grantor();
+
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(grantor.clone())
+            .sign(&key)
+            .unwrap();
+
+        cap.revoke("policy violation");
+
+        let set = CapabilitySet::with_capabilities(key.public_key(), vec![cap]);
+        let resource = test_resource("repository", "org/project");
+        let now = chrono::Utc::now().timestamp_millis();
+
+        let result = set.permits(&CapabilityKind::Read, &resource, now);
+        assert_eq!(
+            result,
+            CapabilityCheck::Denied {
+                reason: DenialReason::Revoked
+            }
+        );
+    }
+
+    #[test]
+    fn delegate_multi_level_chain() {
+        let key = SecretKey::generate();
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .delegatable(3)
+            .sign(&key)
+            .unwrap();
+
+        // Level 0 -> 1
+        let child1 = cap.delegate(&key, None, None).unwrap();
+        assert_eq!(child1.delegation_depth(), 1);
+        assert_eq!(child1.parent_capability_id(), Some(cap.id()));
+
+        // Level 1 -> 2
+        let child2 = child1.delegate(&key, None, None).unwrap();
+        assert_eq!(child2.delegation_depth(), 2);
+        assert_eq!(child2.parent_capability_id(), Some(child1.id()));
+
+        // Level 2 -> 3
+        let child3 = child2.delegate(&key, None, None).unwrap();
+        assert_eq!(child3.delegation_depth(), 3);
+        assert_eq!(child3.parent_capability_id(), Some(child2.id()));
+
+        // Level 3 -> 4: exceeds max_delegation_depth=3
+        let err = child3.delegate(&key, None, None).unwrap_err();
+        assert!(err.to_string().contains("delegation depth"));
+    }
+
+    #[test]
+    fn revoke_idempotent() {
+        let key = SecretKey::generate();
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .sign(&key)
+            .unwrap();
+
+        cap.revoke("first reason");
+        let ts1 = cap.revoked_at().unwrap();
+        let reason1 = cap.revocation_reason().unwrap().to_string();
+
+        // Second revoke overwrites (latest revoke wins)
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        cap.revoke("updated reason");
+        let ts2 = cap.revoked_at().unwrap();
+        let reason2 = cap.revocation_reason().unwrap().to_string();
+
+        // Remains revoked with updated info
+        assert!(cap.is_revoked());
+        assert!(ts2 >= ts1);
+        assert_eq!(reason2, "updated reason");
+        assert_ne!(reason1, reason2);
+    }
+
+    #[test]
+    fn lifecycle_state_revoked_takes_precedence_over_expired() {
+        let key = SecretKey::generate();
+        let now = chrono::Utc::now().timestamp_millis();
+
+        let mut cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .expires_at(now - 1000) // already expired
+            .sign(&key)
+            .unwrap();
+
+        // Without revocation, it's Expired
+        assert_eq!(cap.lifecycle_state(now), CapabilityState::Expired);
+
+        // After revocation, Revoked takes precedence
+        cap.revoke("also revoked");
+        assert_eq!(cap.lifecycle_state(now), CapabilityState::Revoked);
+    }
+
+    #[test]
+    fn delegate_inherits_scope_when_none() {
+        let key = SecretKey::generate();
+        let parent_scope = ResourceScope::pattern("repository:org/*");
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(parent_scope.clone())
+            .grantor(test_grantor())
+            .delegatable(3)
+            .sign(&key)
+            .unwrap();
+
+        let child = cap.delegate(&key, None, None).unwrap();
+        assert_eq!(child.scope(), &parent_scope);
+    }
+
+    #[test]
+    fn delegate_inherits_expiry_when_none() {
+        let key = SecretKey::generate();
+        let now = chrono::Utc::now().timestamp_millis();
+        let parent_expiry = now + 60_000;
+
+        let cap = Capability::builder()
+            .kind(CapabilityKind::Read)
+            .scope(ResourceScope::all())
+            .grantor(test_grantor())
+            .delegatable(3)
+            .expires_at(parent_expiry)
+            .sign(&key)
+            .unwrap();
+
+        let child = cap.delegate(&key, None, None).unwrap();
+        assert_eq!(child.expires_at(), Some(parent_expiry));
     }
 }

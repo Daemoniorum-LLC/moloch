@@ -780,7 +780,7 @@ impl ApprovalRequest {
     /// Apply a response to this request.
     pub fn apply_response(&mut self, response: &ApprovalResponse) -> Result<()> {
         // Verify request ID matches
-        if response.request_id != self.id {
+        if response.request_id() != self.id {
             return Err(Error::invalid_input("Response request_id does not match"));
         }
 
@@ -796,33 +796,33 @@ impl ApprovalRequest {
         }
 
         // Verify responder is an approver
-        if !self.can_approve(&response.responder) {
+        if !self.can_approve(response.responder()) {
             return Err(Error::invalid_input(
                 "Responder is not a valid approver for this request",
             ));
         }
 
-        match &response.decision {
+        match response.decision() {
             ApprovalDecision::Approve => {
                 self.collected_approvals
-                    .push((response.responder.clone(), response.responded_at));
+                    .push((response.responder().clone(), response.responded_at()));
 
                 if self.collected_approvals.len() >= self.policy.required_approvals as usize {
                     self.status = ApprovalStatus::Approved {
-                        approver: response.responder.clone(),
-                        approved_at: response.responded_at,
+                        approver: response.responder().clone(),
+                        approved_at: response.responded_at(),
                         modifications: None,
                     };
                 }
             }
             ApprovalDecision::ApproveWithModifications(mods) => {
                 self.collected_approvals
-                    .push((response.responder.clone(), response.responded_at));
+                    .push((response.responder().clone(), response.responded_at()));
 
                 if self.collected_approvals.len() >= self.policy.required_approvals as usize {
                     self.status = ApprovalStatus::Approved {
-                        approver: response.responder.clone(),
-                        approved_at: response.responded_at,
+                        approver: response.responder().clone(),
+                        approved_at: response.responded_at(),
                         modifications: Some(mods.clone()),
                     };
                 }
@@ -830,8 +830,8 @@ impl ApprovalRequest {
             ApprovalDecision::Reject { reason } => {
                 if self.policy.any_can_reject {
                     self.status = ApprovalStatus::Rejected {
-                        rejector: response.responder.clone(),
-                        rejected_at: response.responded_at,
+                        rejector: response.responder().clone(),
+                        rejected_at: response.responded_at(),
                         reason: reason.clone(),
                     };
                 }
@@ -980,15 +980,15 @@ impl ApprovalDecision {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApprovalResponse {
     /// The request being responded to.
-    pub request_id: ApprovalRequestId,
+    request_id: ApprovalRequestId,
     /// The human responding.
-    pub responder: PrincipalId,
+    responder: PrincipalId,
     /// The decision.
-    pub decision: ApprovalDecision,
+    decision: ApprovalDecision,
     /// When the response was made (Unix timestamp ms).
-    pub responded_at: i64,
+    responded_at: i64,
     /// Signature proving human involvement.
-    pub signature: Sig,
+    signature: Sig,
 }
 
 impl ApprovalResponse {
@@ -1005,6 +1005,31 @@ impl ApprovalResponse {
             responded_at: chrono::Utc::now().timestamp_millis(),
             signature: Sig::empty(),
         }
+    }
+
+    /// Get the request ID this response is for.
+    pub fn request_id(&self) -> ApprovalRequestId {
+        self.request_id
+    }
+
+    /// Get the responder principal.
+    pub fn responder(&self) -> &PrincipalId {
+        &self.responder
+    }
+
+    /// Get the approval decision.
+    pub fn decision(&self) -> &ApprovalDecision {
+        &self.decision
+    }
+
+    /// Get when the response was made (Unix timestamp ms).
+    pub fn responded_at(&self) -> i64 {
+        self.responded_at
+    }
+
+    /// Get the response signature.
+    pub fn signature(&self) -> &Sig {
+        &self.signature
     }
 
     /// Sign the response.
@@ -1467,5 +1492,49 @@ mod tests {
     fn approval_decision_is_rejection() {
         assert!(!ApprovalDecision::approve().is_rejection());
         assert!(ApprovalDecision::reject("no").is_rejection());
+    }
+
+    // === ApprovalResponse Encapsulation Tests (Finding 3.1) ===
+
+    #[test]
+    fn approval_response_accessed_through_methods() {
+        let req_id = ApprovalRequestId::generate();
+        let principal = test_principal();
+
+        let response =
+            ApprovalResponse::new(req_id, principal.clone(), ApprovalDecision::approve());
+
+        assert_eq!(response.request_id(), req_id);
+        assert_eq!(response.responder(), &principal);
+        assert!(response.decision().is_approval());
+        assert!(response.responded_at() > 0);
+    }
+
+    #[test]
+    fn approval_response_signature_accessor() {
+        let key = SecretKey::generate();
+        let req_id = ApprovalRequestId::generate();
+        let principal = test_principal();
+
+        let response = ApprovalResponse::new(req_id, principal, ApprovalDecision::approve());
+        let signed = response.sign(&key);
+
+        // Signature should not be empty after signing
+        assert!(!signed.signature().is_empty());
+    }
+
+    #[test]
+    fn approval_response_rejection_via_accessor() {
+        let req_id = ApprovalRequestId::generate();
+        let principal = test_principal();
+
+        let response = ApprovalResponse::new(
+            req_id,
+            principal,
+            ApprovalDecision::reject("policy violation"),
+        );
+
+        assert!(response.decision().is_rejection());
+        assert!(!response.decision().is_approval());
     }
 }
