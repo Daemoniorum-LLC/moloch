@@ -20,6 +20,7 @@
 pub mod attestation;
 pub mod audit_bridge;
 pub mod capability;
+pub mod event_types;
 #[macro_use]
 pub mod id;
 pub mod causality;
@@ -44,16 +45,24 @@ pub use capability::{
     CapabilityKind, CapabilitySet, CapabilitySetId, CapabilityState, DayOfWeek, DenialReason,
     RateLimit, ResourceScope, TimeOfDay, TimeWindow,
 };
-pub use causality::{CausalContext, CausalContextBuilder, CrossSessionReference};
+pub use causality::{
+    CausalChainQuery, CausalContext, CausalContextBuilder, CrossSessionReference,
+    InMemoryCausalStore,
+};
 pub use coordination::{
-    CoordinatedAction, CoordinatedActionBuilder, CoordinatedActionSpec, CoordinationEvent,
+    Conflict, ConflictId, ConflictResolutionMethod, ConflictStatus, CoordinatedAction,
+    CoordinatedActionBuilder, CoordinatedActionSpec, CoordinationCostTracker, CoordinationEvent,
     CoordinationId, CoordinationMetrics, CoordinationProtocol, CoordinationResult,
     CoordinationStatus, CoordinationType, FailureHandling, Participant, ParticipantRole,
-    Responsibility, Task, TaskDependency, TaskId,
+    QuorumPolicy, Responsibility, Task, TaskDependency, TaskId,
 };
 pub use emergency::{
     DurationMs, EmergencyAction, EmergencyEvent, EmergencyEventBuilder, EmergencyPriority,
-    EmergencyResolution, EmergencyTrigger, PostMortem, Resolution, SuspensionScope,
+    EmergencyResolution, EmergencyTrigger, GlobalPauseState, PostMortem, Resolution,
+    SuspensionEntry, SuspensionRegistry, SuspensionScope,
+};
+pub use event_types::{
+    ActionDetails, AgentEventMetadataV2, AgentEventType, DisputeResolution, TerminationReason,
 };
 pub use hitl::{
     ActionModifications, ApprovalContext, ApprovalDecision, ApprovalPolicy, ApprovalRequest,

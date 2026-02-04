@@ -418,6 +418,11 @@ pub struct CapabilityConstraints {
     /// Rate limit.
     pub rate_limit: Option<RateLimit>,
 
+    /// Recent usage timestamps for rate limit enforcement (Unix ms).
+    /// Entries older than the rate limit period are pruned on check.
+    #[serde(default)]
+    pub recent_use_timestamps: Vec<i64>,
+
     /// Time windows when capability is valid.
     pub time_windows: Vec<TimeWindow>,
 
@@ -488,6 +493,36 @@ impl CapabilityConstraints {
         }
         self.current_uses += 1;
         Ok(())
+    }
+
+    /// Check if the rate limit is exceeded at the given timestamp.
+    ///
+    /// Returns true if the number of recent uses within the rate limit
+    /// period meets or exceeds `max_requests`.
+    pub fn is_rate_limited(&self, now: i64) -> bool {
+        match &self.rate_limit {
+            None => false,
+            Some(limit) => {
+                let window_start = now.saturating_sub(limit.period_ms as i64);
+                let recent_count = self
+                    .recent_use_timestamps
+                    .iter()
+                    .filter(|&&ts| ts >= window_start)
+                    .count();
+                recent_count >= limit.max_requests as usize
+            }
+        }
+    }
+
+    /// Record a usage for rate limiting purposes.
+    ///
+    /// Prunes timestamps older than the rate limit window.
+    pub fn record_rate_limit_use(&mut self, now: i64) {
+        if let Some(limit) = &self.rate_limit {
+            let window_start = now.saturating_sub(limit.period_ms as i64);
+            self.recent_use_timestamps.retain(|&ts| ts >= window_start);
+        }
+        self.recent_use_timestamps.push(now);
     }
 }
 
@@ -1096,6 +1131,13 @@ impl CapabilitySet {
             if cap.constraints().is_usage_limit_reached() {
                 return CapabilityCheck::Denied {
                     reason: DenialReason::UsageLimitExceeded,
+                };
+            }
+
+            // Check rate limit (G-5.1)
+            if cap.constraints().is_rate_limited(timestamp) {
+                return CapabilityCheck::Denied {
+                    reason: DenialReason::RateLimitExceeded,
                 };
             }
 

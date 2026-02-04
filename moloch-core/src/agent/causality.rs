@@ -373,6 +373,135 @@ impl CrossSessionReference {
     }
 }
 
+/// Query interface for causal chains (Section 6, G-6.1).
+///
+/// Implementors provide queries against the causal chain for accountability
+/// auditing and forensics. This trait is object-safe so it can be used
+/// with `dyn CausalChainQuery`.
+pub trait CausalChainQuery {
+    /// Retrieve the full causal chain from an event back to the root.
+    ///
+    /// Returns events in order from root (depth 0) to the queried event.
+    fn trace_to_root(&self, event_id: &EventId) -> Result<Vec<CausalContext>>;
+
+    /// Find the root (human-initiated) event for a given event.
+    fn find_root(&self, event_id: &EventId) -> Result<CausalContext>;
+
+    /// List all events in a session, ordered by sequence.
+    fn events_in_session(&self, session_id: &SessionId) -> Result<Vec<CausalContext>>;
+
+    /// Find all direct children of an event.
+    fn children_of(&self, event_id: &EventId) -> Result<Vec<CausalContext>>;
+
+    /// Get the maximum depth reached in a session.
+    fn max_depth_in_session(&self, session_id: &SessionId) -> Result<u32>;
+}
+
+/// An in-memory implementation of [`CausalChainQuery`] for testing and
+/// single-node deployments.
+#[derive(Debug, Default)]
+pub struct InMemoryCausalStore {
+    /// Event ID -> CausalContext mapping.
+    contexts: std::collections::HashMap<EventId, CausalContext>,
+    /// Session ID -> ordered event IDs.
+    session_events: std::collections::HashMap<SessionId, Vec<EventId>>,
+}
+
+impl InMemoryCausalStore {
+    /// Create a new empty store.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Insert a causal context for an event.
+    pub fn insert(&mut self, event_id: EventId, context: CausalContext) {
+        let session_id = context.session_id();
+        self.session_events
+            .entry(session_id)
+            .or_default()
+            .push(event_id);
+        self.contexts.insert(event_id, context);
+    }
+
+    /// Get a context by event ID.
+    pub fn get(&self, event_id: &EventId) -> Option<&CausalContext> {
+        self.contexts.get(event_id)
+    }
+
+    /// Get the number of stored contexts.
+    pub fn len(&self) -> usize {
+        self.contexts.len()
+    }
+
+    /// Check if the store is empty.
+    pub fn is_empty(&self) -> bool {
+        self.contexts.is_empty()
+    }
+}
+
+impl CausalChainQuery for InMemoryCausalStore {
+    fn trace_to_root(&self, event_id: &EventId) -> Result<Vec<CausalContext>> {
+        let mut chain = Vec::new();
+        let mut current_id = *event_id;
+
+        loop {
+            let ctx = self.contexts.get(&current_id).ok_or_else(|| {
+                Error::invalid_input(format!("event {} not found in causal store", current_id))
+            })?;
+            chain.push(ctx.clone());
+
+            if ctx.is_root() {
+                break;
+            }
+
+            match ctx.parent_event_id() {
+                Some(parent) => current_id = *parent,
+                None => break,
+            }
+        }
+
+        chain.reverse();
+        Ok(chain)
+    }
+
+    fn find_root(&self, event_id: &EventId) -> Result<CausalContext> {
+        let chain = self.trace_to_root(event_id)?;
+        chain
+            .into_iter()
+            .next()
+            .ok_or_else(|| Error::invalid_input("empty causal chain"))
+    }
+
+    fn events_in_session(&self, session_id: &SessionId) -> Result<Vec<CausalContext>> {
+        let event_ids = self
+            .session_events
+            .get(session_id)
+            .cloned()
+            .unwrap_or_default();
+        let mut contexts: Vec<CausalContext> = event_ids
+            .iter()
+            .filter_map(|id| self.contexts.get(id).cloned())
+            .collect();
+        contexts.sort_by_key(|c| c.sequence());
+        Ok(contexts)
+    }
+
+    fn children_of(&self, event_id: &EventId) -> Result<Vec<CausalContext>> {
+        let children: Vec<CausalContext> = self
+            .contexts
+            .values()
+            .filter(|ctx| ctx.parent_event_id() == Some(event_id))
+            .cloned()
+            .collect();
+        Ok(children)
+    }
+
+    fn max_depth_in_session(&self, session_id: &SessionId) -> Result<u32> {
+        let events = self.events_in_session(session_id)?;
+        Ok(events.iter().map(|c| c.depth()).max().unwrap_or(0))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

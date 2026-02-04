@@ -82,6 +82,7 @@ pub enum EventTypeKey {
     ReleasePublished,
     BackupCreated,
     SecurityScan,
+    AgentAccountability,
     Custom(String),
 }
 
@@ -123,6 +124,7 @@ impl From<&EventType> for EventTypeKey {
             EventType::ReleasePublished { .. } => EventTypeKey::ReleasePublished,
             EventType::BackupCreated => EventTypeKey::BackupCreated,
             EventType::SecurityScan { .. } => EventTypeKey::SecurityScan,
+            EventType::AgentAccountability { .. } => EventTypeKey::AgentAccountability,
             EventType::Custom { name } => EventTypeKey::Custom(name.clone()),
         }
     }
