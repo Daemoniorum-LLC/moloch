@@ -1335,7 +1335,7 @@ pub enum ConflictStatus {
     /// Conflict resolved.
     Resolved {
         /// How it was resolved.
-        resolution: ConflictResolutionMethod,
+        resolution: Box<ConflictResolutionMethod>,
         /// When it was resolved (Unix ms).
         resolved_at: i64,
     },

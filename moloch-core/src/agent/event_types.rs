@@ -170,7 +170,7 @@ pub enum AgentEventType {
     /// Human approval requested.
     ApprovalRequested {
         /// The approval request.
-        request: ApprovalRequest,
+        request: Box<ApprovalRequest>,
     },
 
     /// Human approval response received.
