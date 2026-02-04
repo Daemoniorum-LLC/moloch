@@ -5,14 +5,16 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "REST/WebSocket API layer for Moloch audit chain"
 
 [dependencies]
-moloch-core = { path = "../moloch-core" }
-moloch-chain = { path = "../moloch-chain" }
-moloch-storage = { path = "../moloch-storage" }
-moloch-index = { path = "../moloch-index" }
-moloch-consensus = { path = "../moloch-consensus" }
+moloch-core = { path = "../moloch-core", version = "0.1.0" }
+moloch-chain = { path = "../moloch-chain", version = "0.1.0" }
+moloch-storage = { path = "../moloch-storage", version = "0.1.0" }
+moloch-index = { path = "../moloch-index", version = "0.1.0" }
+moloch-consensus = { path = "../moloch-consensus", version = "0.1.0" }
 
 # Error handling
 thiserror.workspace = true

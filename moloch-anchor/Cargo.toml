@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Provider-agnostic blockchain anchoring for Moloch audit chain"
 
 [features]
@@ -11,7 +14,7 @@ default = []
 mock = ["rand"]
 
 [dependencies]
-moloch-core.path = "../moloch-core"
+moloch-core = { path = "../moloch-core", version = "0.1.0" }
 
 thiserror.workspace = true
 serde.workspace = true

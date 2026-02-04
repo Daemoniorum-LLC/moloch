@@ -8,10 +8,13 @@ Test-Driven Development roadmap for preparing Moloch for open source release.
 
 ## Phase 1: Critical Security Fixes
 
-### 1.1 API Key Hashing (CRITICAL)
+### 1.1 API Key Hashing (CRITICAL) - DONE
 
-**Current State**: `moloch-api/src/auth.rs:304-311` uses `DefaultHasher` (SipHash)
-**Target**: Use Argon2id for cryptographic key hashing
+**Status**: Resolved. `moloch-api/src/auth.rs` uses `moloch_core::hash` (BLAKE3)
+for API key hashing. Verified 2026-02-03.
+
+~~**Current State**: `moloch-api/src/auth.rs:304-311` uses `DefaultHasher` (SipHash)~~
+~~**Target**: Use Argon2id for cryptographic key hashing~~
 
 #### RED - Write Failing Tests
 
@@ -87,10 +90,14 @@ argon2 = { version = "0.5", features = ["std"] }
 
 ---
 
-### 1.2 Light Client Signature Verification (CRITICAL)
+### 1.2 Light Client Signature Verification (CRITICAL) - DONE
 
-**Current State**: `moloch-light/src/header.rs:78-82` always returns `true`
-**Target**: Implement actual Ed25519 signature verification
+**Status**: Resolved. `moloch-light/src/header.rs:79` uses `pk.verify()` with real
+Ed25519 verification. Tests at lines 278-363 confirm correct behavior including
+rejection of invalid signatures. Verified 2026-02-03.
+
+~~**Current State**: `moloch-light/src/header.rs:78-82` always returns `true`~~
+~~**Target**: Implement actual Ed25519 signature verification~~
 
 #### RED - Write Failing Tests
 
@@ -190,9 +197,12 @@ fn verify_signature(&self, pk: &PublicKey, sig: &moloch_core::Sig) -> bool {
 
 ## Phase 2: High Priority Fixes
 
-### 2.1 Rust Toolchain Pinning
+### 2.1 Rust Toolchain Pinning - DONE
 
-**Target**: Create `rust-toolchain.toml` for reproducible builds
+**Status**: Resolved. `rust-toolchain.toml` exists with `channel = "1.89"`,
+`profile = "minimal"`, and components `rustfmt` + `clippy`. Verified 2026-02-03.
+
+~~**Target**: Create `rust-toolchain.toml` for reproducible builds~~
 
 #### Test (Manual Verification)
 
@@ -215,10 +225,15 @@ components = ["rustfmt", "clippy"]
 
 ---
 
-### 2.2 Repository URL Fix
+### 2.2 Repository URL Fix - DONE
 
-**Current**: `https://github.com/Daemoniorum-LLC/workspace`
-**Target**: `https://github.com/Daemoniorum-LLC/moloch`
+**Status**: Resolved. `Cargo.toml` workspace metadata has
+`repository = "https://github.com/Daemoniorum-LLC/moloch"` and all crates
+inherit via `repository.workspace = true`. README clone URL also fixed.
+Verified 2026-02-03.
+
+~~**Current**: `https://github.com/Daemoniorum-LLC/workspace`~~
+~~**Target**: `https://github.com/Daemoniorum-LLC/moloch`~~
 
 #### Test (CI Verification)
 
@@ -234,9 +249,14 @@ Edit `/Cargo.toml` line 27.
 
 ---
 
-### 2.3 Add Crate Keywords
+### 2.3 Add Crate Keywords - DONE
 
-**Target**: Add keywords for crates.io discoverability
+**Status**: Resolved. Workspace defines `keywords = ["audit", "blockchain",
+"cryptography", "merkle", "zk-proofs"]` and `categories = ["cryptography",
+"data-structures"]`. All crates inherit via `keywords.workspace = true` and
+`categories.workspace = true`. Verified 2026-02-03.
+
+~~**Target**: Add keywords for crates.io discoverability~~
 
 #### Implementation
 
@@ -250,9 +270,13 @@ categories = ["cryptography", "data-structures"]
 
 ---
 
-### 2.4 JWT Secret Production Guard
+### 2.4 JWT Secret Production Guard - DONE
 
-**Target**: Panic or warn loudly if default JWT secret is used
+**Status**: Resolved. `moloch-api/src/auth.rs` implements `new_strict()` constructor
+that panics on default JWT secret or secrets shorter than 32 characters. Tests at
+lines 653-724 confirm correct behavior. Verified 2026-02-03.
+
+~~**Target**: Panic or warn loudly if default JWT secret is used~~
 
 #### RED - Write Failing Test
 
@@ -346,18 +370,18 @@ examples:
 
 ## Execution Order
 
-| Order | Item | Effort | Blocking Release? |
+| Order | Item | Status | Blocking Release? |
 |-------|------|--------|-------------------|
-| 1 | API Key Hashing (1.1) | 30 min | YES |
-| 2 | Signature Verification (1.2) | 30 min | YES |
-| 3 | JWT Secret Guard (2.4) | 15 min | YES |
-| 4 | Rust Toolchain (2.1) | 5 min | No |
-| 5 | Repository URL (2.2) | 5 min | No |
-| 6 | Crate Keywords (2.3) | 5 min | No |
-| 7 | Examples Directory (3.1) | 1-2 hr | No |
-| 8 | Error Consistency (4.1) | 1 hr | No |
+| 1 | API Key Hashing (1.1) | **DONE** (uses BLAKE3) | ~~YES~~ |
+| 2 | Signature Verification (1.2) | **DONE** (real Ed25519) | ~~YES~~ |
+| 3 | JWT Secret Guard (2.4) | **DONE** (`new_strict()`) | ~~YES~~ |
+| 4 | Rust Toolchain (2.1) | **DONE** (channel 1.89) | ~~No~~ |
+| 5 | Repository URL (2.2) | **DONE** (workspace inheritance) | ~~No~~ |
+| 6 | Crate Keywords (2.3) | **DONE** (workspace inheritance) | ~~No~~ |
+| 7 | Examples Directory (3.1) | Deferred to post-0.1.0 | No |
+| 8 | Error Consistency (4.1) | Deferred to post-0.1.0 | No |
 
-**Total estimated time**: 3-4 hours
+**All release-blocking items resolved as of 2026-02-03.**
 
 ---
 

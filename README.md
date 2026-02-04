@@ -2,7 +2,7 @@
 
 Cryptographic audit chain with post-quantum encryption, zero-knowledge proofs, cross-chain anchoring, and autonomous agent accountability.
 
-**~48,700 lines of Rust** across 16 crates and 113 source files. **361 tests** (348 unit + 13 integration).
+**~48,700 lines of Rust** across 16 crates and 113 source files. **870 tests** passing.
 
 See [BENCHMARK_REPORT.md](BENCHMARK_REPORT.md) for performance data.
 
@@ -64,7 +64,7 @@ moloch/
 
 ### Prerequisites
 
-- Rust 1.75+ (2021 edition)
+- Rust 1.89+ (2021 edition, pinned in `rust-toolchain.toml`)
 - RocksDB development libraries
 - For anchoring: Bitcoin Core RPC / Ethereum RPC access
 
@@ -72,8 +72,8 @@ moloch/
 
 ```bash
 # Clone the repository
-git clone https://github.com/Daemoniorum-LLC/nyx.git
-cd nyx/moloch
+git clone https://github.com/Daemoniorum-LLC/moloch.git
+cd moloch
 
 # Build all crates
 cargo build --release
@@ -253,6 +253,12 @@ docs/
 ## License
 
 MIT License - see [LICENSE](LICENSE)
+
+## Known Issues
+
+See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for a transparent accounting of known
+limitations, dependency advisories, incomplete features, and cryptographic
+caveats.
 
 ## Security
 

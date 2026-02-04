@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Ethereum anchoring provider for Moloch"
 
 [features]
@@ -13,8 +16,8 @@ sepolia = []
 holesky = []
 
 [dependencies]
-moloch-core.path = "../moloch-core"
-moloch-anchor = { path = "../moloch-anchor", features = ["mock"] }
+moloch-core = { path = "../moloch-core", version = "0.1.0" }
+moloch-anchor = { path = "../moloch-anchor", version = "0.1.0", features = ["mock"] }
 
 # Ethereum (alloy - modern ethers successor)
 alloy = { version = "0.8", features = [

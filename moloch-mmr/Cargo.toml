@@ -4,10 +4,13 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Merkle Mountain Range implementation for Moloch"
 
 [dependencies]
-moloch-core = { path = "../moloch-core" }
+moloch-core = { path = "../moloch-core", version = "0.1.0" }
 thiserror.workspace = true
 serde.workspace = true
 rayon.workspace = true

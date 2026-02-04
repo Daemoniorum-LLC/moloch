@@ -5,13 +5,15 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Indexing and query layer for Moloch audit chain"
 
 [dependencies]
 # Internal
-moloch-core = { path = "../moloch-core" }
-moloch-mmr = { path = "../moloch-mmr" }
-moloch-storage = { path = "../moloch-storage" }
+moloch-core = { path = "../moloch-core", version = "0.1.0" }
+moloch-mmr = { path = "../moloch-mmr", version = "0.1.0" }
+moloch-storage = { path = "../moloch-storage", version = "0.1.0" }
 
 # Error handling
 thiserror.workspace = true

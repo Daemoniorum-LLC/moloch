@@ -3,6 +3,11 @@ name = "moloch-holocrypt"
 description = "HoloCrypt integration for Moloch audit chain - encrypted events, ZK proofs, threshold access"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [features]
 default = ["full"]
@@ -14,7 +19,7 @@ pqc = []
 
 [dependencies]
 # Moloch core
-moloch-core = { path = "../moloch-core" }
+moloch-core = { path = "../moloch-core", version = "0.1.0" }
 
 # Arcanum cryptographic primitives (crates.io v0.1)
 arcanum-holocrypt = { version = "0.1", features = ["full"] }

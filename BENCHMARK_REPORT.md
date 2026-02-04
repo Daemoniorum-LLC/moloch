@@ -231,7 +231,7 @@ Using Arcanum's SIMD-accelerated BLAKE3.
 ## Running Benchmarks
 
 ```bash
-cd /home/crook/dev2/workspace/nyx/moloch
+cd /path/to/moloch
 
 # All benchmarks
 CARGO_INCREMENTAL=0 RUSTFLAGS="-C target-cpu=native" \

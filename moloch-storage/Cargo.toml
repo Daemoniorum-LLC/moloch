@@ -4,11 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Storage layer for Moloch audit chain"
 
 [dependencies]
-moloch-core = { path = "../moloch-core" }
-moloch-mmr = { path = "../moloch-mmr" }
+moloch-core = { path = "../moloch-core", version = "0.1.0" }
+moloch-mmr = { path = "../moloch-mmr", version = "0.1.0" }
 thiserror.workspace = true
 serde.workspace = true
 bincode.workspace = true

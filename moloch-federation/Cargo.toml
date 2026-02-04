@@ -4,12 +4,15 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Multi-chain federation for cross-chain audit trails"
 
 [dependencies]
-moloch-core.path = "../moloch-core"
-moloch-mmr.path = "../moloch-mmr"
-moloch-light.path = "../moloch-light"
+moloch-core = { path = "../moloch-core", version = "0.1.0" }
+moloch-mmr = { path = "../moloch-mmr", version = "0.1.0" }
+moloch-light = { path = "../moloch-light", version = "0.1.0" }
 
 thiserror.workspace = true
 serde.workspace = true

@@ -9,7 +9,7 @@
 ## TL;DR - Run This
 
 ```bash
-cd /home/crook/dev2/workspace/nyx/moloch
+cd /path/to/moloch
 
 # Run all benchmarks
 CARGO_INCREMENTAL=0 RUSTFLAGS="-C target-cpu=native" \
@@ -43,7 +43,7 @@ Moloch is an **enterprise audit chain** with:
 
 ### Workspace Root
 ```
-/home/crook/dev2/workspace/nyx/moloch/
+/path/to/moloch/
 ```
 
 ### Crate Structure
