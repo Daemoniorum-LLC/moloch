@@ -42,4 +42,4 @@ Use conventional commits:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same license as the project.
+By contributing, you agree that your contributions will be dual-licensed under MIT and Apache-2.0, the same terms as the project.
