@@ -473,7 +473,11 @@ impl CausalChainQuery for InMemoryCausalStore {
     }
 
     fn events_in_session(&self, session_id: &SessionId) -> Result<Vec<CausalContext>> {
-        let event_ids = self.session_events.get(session_id).cloned().unwrap_or_default();
+        let event_ids = self
+            .session_events
+            .get(session_id)
+            .cloned()
+            .unwrap_or_default();
         let mut contexts: Vec<CausalContext> = event_ids
             .iter()
             .filter_map(|id| self.contexts.get(id).cloned())

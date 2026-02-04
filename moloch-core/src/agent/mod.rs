@@ -40,9 +40,6 @@ pub use attestation::{
     RuntimeAttestation, TeeQuote, TeeType, ToolAttestation,
 };
 pub use audit_bridge::{AgentAuditEventBuilder, AgentEventMetadata};
-pub use event_types::{
-    ActionDetails, AgentEventMetadataV2, AgentEventType, DisputeResolution, TerminationReason,
-};
 pub use capability::{
     Capability, CapabilityBuilder, CapabilityCheck, CapabilityConstraints, CapabilityId,
     CapabilityKind, CapabilitySet, CapabilitySetId, CapabilityState, DayOfWeek, DenialReason,
@@ -63,6 +60,9 @@ pub use emergency::{
     DurationMs, EmergencyAction, EmergencyEvent, EmergencyEventBuilder, EmergencyPriority,
     EmergencyResolution, EmergencyTrigger, GlobalPauseState, PostMortem, Resolution,
     SuspensionEntry, SuspensionRegistry, SuspensionScope,
+};
+pub use event_types::{
+    ActionDetails, AgentEventMetadataV2, AgentEventType, DisputeResolution, TerminationReason,
 };
 pub use hitl::{
     ActionModifications, ApprovalContext, ApprovalDecision, ApprovalPolicy, ApprovalRequest,

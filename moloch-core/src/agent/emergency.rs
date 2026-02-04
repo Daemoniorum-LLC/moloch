@@ -861,10 +861,7 @@ impl SuspensionRegistry {
             expires_at,
             reason,
         };
-        self.suspensions
-            .entry(agent)
-            .or_default()
-            .push(entry);
+        self.suspensions.entry(agent).or_default().push(entry);
     }
 
     /// Set a global pause.
@@ -950,12 +947,7 @@ impl SuspensionRegistry {
     }
 
     /// Check if an agent's access to a specific resource is blocked.
-    pub fn check_resource(
-        &self,
-        agent: &PublicKey,
-        resource: &ResourceId,
-        now: i64,
-    ) -> Result<()> {
+    pub fn check_resource(&self, agent: &PublicKey, resource: &ResourceId, now: i64) -> Result<()> {
         if let Some(entries) = self.suspensions.get(agent) {
             for entry in entries {
                 if entry.is_active(now) && entry.scope.includes_resource(resource) {

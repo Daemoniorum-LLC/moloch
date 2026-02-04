@@ -21,7 +21,7 @@ use super::hitl::{
 use super::outcome::{Evidence, OutcomeAttestation};
 use super::principal::PrincipalId;
 use super::reasoning::ReasoningTrace;
-use super::session::{Session, SessionId, SessionEndReason, SessionSummary};
+use super::session::{Session, SessionEndReason, SessionId, SessionSummary};
 
 /// Extended event types for agent accountability (Section 11.1).
 ///
@@ -279,8 +279,9 @@ impl AgentEventType {
     /// Used to determine evidence and approval requirements.
     pub fn default_severity(&self) -> Severity {
         match self {
-            AgentEventType::EmergencyDeclared { .. }
-            | AgentEventType::AgentTerminated { .. } => Severity::Critical,
+            AgentEventType::EmergencyDeclared { .. } | AgentEventType::AgentTerminated { .. } => {
+                Severity::Critical
+            }
 
             AgentEventType::CapabilityRevoked { .. }
             | AgentEventType::AttestationRevoked { .. }
@@ -446,9 +447,8 @@ impl AgentEventMetadataV2 {
 
     /// Deserialize from AuditEvent metadata bytes.
     pub fn from_bytes(bytes: &[u8]) -> crate::error::Result<Self> {
-        serde_json::from_slice(bytes).map_err(|e| {
-            crate::error::Error::invalid_input(format!("invalid v2 metadata: {}", e))
-        })
+        serde_json::from_slice(bytes)
+            .map_err(|e| crate::error::Error::invalid_input(format!("invalid v2 metadata: {}", e)))
     }
 }
 

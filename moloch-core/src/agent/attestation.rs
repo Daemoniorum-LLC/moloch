@@ -193,11 +193,7 @@ impl AgentAttestation {
     /// - Signature validity
     /// - Temporal validity (not expired)
     /// - Binding to actor
-    pub fn validate_for_action(
-        &self,
-        actor_key: &PublicKey,
-        action_time: i64,
-    ) -> Result<()> {
+    pub fn validate_for_action(&self, actor_key: &PublicKey, action_time: i64) -> Result<()> {
         // Check validity window
         if !self.is_valid_at(action_time) {
             return Err(Error::invalid_input("attestation has expired"));
@@ -1016,7 +1012,9 @@ mod tests {
             .unwrap();
 
         // Within validity window
-        assert!(attestation.validate_for_action(&agent.public_key(), 2000).is_ok());
+        assert!(attestation
+            .validate_for_action(&agent.public_key(), 2000)
+            .is_ok());
     }
 
     #[test]
